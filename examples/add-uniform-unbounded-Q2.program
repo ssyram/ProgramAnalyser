@@ -1,0 +1,21 @@
+p_x:=0;
+p_y:=0;
+
+[p_y>=0 and p_x>=0]
+while p_y<=1 do
+   if prob(0.5) then
+      p_y:=p_y+1;
+      p_x:=p_x+r_1
+   else
+      p_x:=p_x+r_2
+   fi
+od;
+if p_x<=15 then
+   score(1)
+else
+   score(0)
+fi;
+return p_x
+end
+
+ 

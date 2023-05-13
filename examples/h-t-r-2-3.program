@@ -1,0 +1,16 @@
+p_h:=0;
+p_t:=r_0;
+
+[p_h>=0 and p_t>=0]
+while p_h <= p_t do
+   if prob(0.5) then
+      p_h := p_h + r_1
+   else
+      skip
+   fi;
+   p_t := p_t + 1
+od;
+score(p_h);
+return p_t
+end
+

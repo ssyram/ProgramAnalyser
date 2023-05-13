@@ -1,0 +1,38 @@
+p_pos:=r_0;
+p_dis:=0;
+
+[p_pos+1>=0 and p_dis>=0]
+while p_pos>=0 do
+  if p_pos>=1.5 then
+     if prob(0.5) then
+        p_pos:=p_pos-r_1
+      else
+        p_pos:=p_pos+r_1
+      fi;
+      p_dis:=p_dis+r_1
+  elseif 1<=p_pos and p_pos<1.5 then
+     if prob(0.5) then
+        p_pos:=p_pos-r_2
+     else
+        p_pos:=p_pos+r_2
+     fi;
+     p_dis:=p_dis+r_2
+  elseif 0.5<=p_pos and p_pos<1 then
+    if prob(0.5) then
+       p_pos:=p_pos-r_3
+    else
+       p_pos:=p_pos+r_3
+    fi;
+    p_dis:=p_dis+r_3
+  elseif p_pos<0.5 then
+     if prob(0.5) then
+        p_pos:=p_pos-r_4
+     else
+        p_pos:=p_pos+r_4
+     fi;
+     p_dis:=p_dis+r_4
+  fi
+od;
+score(normal(1.1,5^2),p_dis);
+return p_pos
+end

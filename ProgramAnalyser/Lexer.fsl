@@ -1,0 +1,85 @@
+{
+open FSharp.Text.Lexing
+open ProgramAnalyser.ParserSupport
+open Parser
+
+let mutable commenting = false
+}
+
+let alphabet = (['a' - 'z'] | ['A' - 'Z'] | '_' | ''')
+let digit = ['0'-'9']
+let whitespace = [' ' '\t' ]
+let newline = ('\n' | '\r' '\n')
+
+rule token = parse
+| whitespace                            { token lexbuf }
+| newline                               {
+    lexbuf.EndPos <- lexbuf.EndPos.NextLine;
+    if commenting = true then NEWLINE else token lexbuf
+}
+| "("                                   { LPAREN }
+| ")"                                   { RPAREN }
+| "config"                              { KW_CONFIG }
+| "true"                                { TRUE }
+| "false"                               { FALSE }
+| "skip"                                { ST_SKIP }
+| "score"                               { ST_SCORE }
+| "return"                              { ST_RETURN }
+| "while"                               { ST_WHILE }
+| "do"                                  { ST_DO }
+| "od"                                  { ST_OD }
+| "if"                                  { ST_IF }
+| "then"                                { ST_THEN }
+| "else"                                { ST_ELSE }
+| "elseif"                              { ST_ELSEIF }
+| "end"                                 { END }
+| "fi"                                  { ST_FI }
+| "prob"                                { ST_PROB }
+| "<"                                   { LANGLE }
+| ">"                                   { RANGLE }
+| "+"                                   { PLUS }
+| "*"                                   { MULTIPLY }
+| "-"                                   { MINUS }
+| "["                                   { LBKT }
+| "break"                               { ST_BREAK }
+| "]"                                   { RBKT }
+| ";"                                   { SEMI_COLON }
+| "&&"                                  { AND }
+| "and"                                 { AND }
+| "||"                                  { OR }
+| "or"                                  { OR }
+| "|"                                   { VBAR }
+| "~"                                   { TILDE }
+| ">="                                  { GE }
+| "<="                                  { LE }
+| "=="                                  { EQ }
+| "!="                                  { NEQ }
+| "/="                                  { NEQ }
+| "<>"                                  { NEQ }
+| "sample"                              { ST_SAMPLE }
+| "^"                                   { HAT }
+| "/*"                                  {
+        if commenting then AND  // just for returning something
+        else
+            commenting <- true;
+            while (token lexbuf) <> END_BLOCK_COMMENTING do ();
+            commenting <- false;
+            token lexbuf
+    }
+| "*/"                                  { END_BLOCK_COMMENTING }
+| "//"                                  {
+        if commenting then AND  // just for returning something
+        else
+            commenting <- true;
+            while (token lexbuf) <> NEWLINE do ();
+            commenting <- false;
+            token lexbuf
+    }
+| ","                                   { COMMA }
+| "="                                   { ASSIGN }
+| ":="                                  { ASSIGN }
+| alphabet(alphabet|digit)*             { ID (System.String lexbuf.Lexeme) }
+| digit+                                  { INT (System.Int32.Parse(System.String lexbuf.Lexeme)) }
+| digit+('.'digit+)?(['e''E']digit+)?     { DOUBLE (ProgramAnalyser.Global.Numeric.Parse(System.String lexbuf.Lexeme)) }
+| _              { ERROR }
+| eof            { EOF }

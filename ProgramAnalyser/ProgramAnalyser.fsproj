@@ -1,0 +1,40 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net6.0</TargetFramework>
+    </PropertyGroup>
+    
+    <ItemGroup>
+        <PackageReference Include="FsLexYacc" Version="11.0.0-beta1" />
+        <FsYacc Include="Parser.fsy">
+            <OtherFlags>--module Parser -v</OtherFlags>
+        </FsYacc>
+        <FsLex Include="Lexer.fsl">
+            <OtherFlags>--module Lexer --unicode</OtherFlags>
+        </FsLex>
+        <Compile Include="Global.fs" />
+        <Compile Include="Utils.fs" />
+        <Compile Include="Objects.fs" />
+        <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
+        <PackageReference Include="Microsoft.Z3" Version="4.12.0" />
+        <PackageReference Include="Rationals" Version="2.0.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Compile Include="ParserSupport.fs" />
+        <Compile Include="Parser.fsi" />
+        <Compile Include="Parser.fs" />
+        <Compile Include="Lexer.fs" />
+        <Compile Include="Logic.fs" />
+        <Compile Include="Polynomial.fs" />
+        <Compile Include="AnalyseDivision.fs" />
+        <Compile Include="Input.fs" />
+        <Compile Include="Output.fs" />
+        <Compile Include="Run.fs" />
+        <Compile Include="Test.fs" />
+        <Compile Include="VdParserSupport.fs" />
+        <Compile Include="Program.fs" />
+    </ItemGroup>
+
+</Project>
