@@ -1,3 +1,8 @@
-
 .DS_Store
 .idea/**
+ProgramAnalyser/obj/**
+ProgramAnalyser/bin/**
+ProgramAnalyser/*.fsyacc.output
+ProgramAnalyser/Lexer.fs
+ProgramAnalyser/Parser.fs
+ProgramAnalyser/Parser.fsi
