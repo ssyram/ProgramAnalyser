@@ -1,6 +1,7 @@
 module ProgramAnalyser.Test
 
 open System.Collections.Generic
+open System.IO
 open Microsoft.Z3
 open ProgramAnalyser.Global
 open ProgramAnalyser.Output
@@ -234,11 +235,38 @@ let private getExamplePath (exampleName : string) =
         else exampleName + ".program" in
     "../../../../examples/" + exampleName
 
-let private testRunParseAnalysis input =
+let private testExecPrint exec input =
+    let time, res = exec input in
+    printfn $"{res}"
+    printfn $"Time Elapsed: {time}."
+
+let private testExecPrintToOutputLog exec input =
+    // firstly, generate the output path, if not existed, create it
+    let outputPath =
+        let directory = Path.GetDirectoryName input.programPath in
+        let outputDirectory = Path.Combine(directory, "output") in
+        Directory.CreateDirectory outputDirectory |> ignore;
+        let outputFileName =
+            Path.ChangeExtension(Path.GetFileName input.programPath, ".txt") in
+        Path.Combine(outputDirectory, outputFileName) in
+    
+    // execute the information
+    let time, res = exec input in
+    
+    // write and return
+    File.WriteAllText(outputPath, res + "\n" + $"Generation Time: {time}\n")
+    
+let private testExec input =
+    // perform execution
     let timing = System.Diagnostics.Stopwatch () in
     timing.Start ();
-    printfn $"{runParseAnalysis input}";
-    debugPrint $"Time: {timing.Elapsed}"
+    let ret = runParseAnalysis input in
+    let time = timing.Elapsed in
+    time, ret
+
+/// the central function to modify if the printing mode is to change
+let private testRunParseAnalysis input =
+    testExecPrintToOutputLog testExec input
 
 let private usualTestExample exampleName =
     let input = {
@@ -345,3 +373,20 @@ let test_random_walk_inside () =
         toTruncate = true
         terminationType = PTTTermination
         endLoopScoreAccuracy = None }
+
+let test_run_all () =
+    List.iter (fun func -> func ()) [
+        test_hare_turtle_outside
+        test_hare_turtle_inside
+        test_growing_walk
+        test_para_estimate
+        test_ped_multi_v5_cond_prob
+        test_ped_multi_v3_cond_only
+        test_neg_ten_mode
+        test_cav_example_5
+        test_cav_example_7
+        test_ped_original
+        test_ped_beta
+        test_random_box_walk
+        test_random_walk_inside
+    ]
