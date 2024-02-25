@@ -160,6 +160,7 @@ let nodeToCompare (node : Node) =
 
 let inline nodeToCompareProp node =
     Atom (true, nodeToCompare node)
+
 /// conjunctive comparative list:
 /// a1 ~1 a1' /\ a2 ~2 a2' /\ ... an ~n an'  // ~i is comparator
 type ConjCmps = ConjCmps of (Comparator * ArithExpr * ArithExpr) list
@@ -176,6 +177,7 @@ type ConjCmps = ConjCmps of (Comparator * ArithExpr * ArithExpr) list
             unwrap this
             |> List.map (Compare >> collectVars)
             |> Set.unionMany
+    
     
 /// disjunctive list of possible conjunctions
 /// empty list is the same as `False`

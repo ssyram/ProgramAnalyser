@@ -176,7 +176,7 @@ let rec private removeNonMentionedVars bExpr mentionVars =
         | None, e2 -> e2
         | e1, None -> e1
         | Some e1, Some e2 -> Some $ BAnd (e1, e2)
-    | BCompare (cmp, a1, a2) ->
+    | BCompare (_, a1, a2) ->
         if not (allMentioned a1 && allMentioned a2) then None
         else Some bExpr
 let private programRemoveNoUseInvariantVars program =

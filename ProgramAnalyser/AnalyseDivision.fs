@@ -386,196 +386,196 @@ let genBoundsConjCompsFromItemBoundMap itemBoundMap =
 #nowarn "58"
 module Decomposition = begin
 
-let private simplifyConsistent (revMap : _ []) lst =
-    List.map (BiMap.sndMap (Array.get revMap)) lst
-    |> List.map backToCmp
-    |> ConjCmps
-    |> collectTightRanges
-    |> Option.map genBoundsConjCompsFromItemBoundMap
+    let private simplifyConsistent (revMap : _ []) lst =
+        List.map (BiMap.sndMap (Array.get revMap)) lst
+        |> List.map backToCmp
+        |> ConjCmps
+        |> collectTightRanges
+        |> Option.map genBoundsConjCompsFromItemBoundMap
 
-let decomposePropToExclusiveConjCmps (proposition : Proposition<Compare>) =
-    let map = AutoIdxMap<StdCmp> () in
-    let mapper (isPos, cmp) =
-        let cmp = if isPos then cmp else negateCompare cmp in
-        match compareToStdCmps cmp with
-        | [ x ], _ -> Atom (true, map.LookUp x)
-        | [ x; y ], true ->
-            And [
-                Atom (true, map.LookUp x)
-                Atom (true, map.LookUp y)
-            ]
-        | [ x; y ], false ->
-            Or [
-                Atom (true, map.LookUp x)
-                Atom (true, map.LookUp y)
-            ]
-        | _ -> IMPOSSIBLE ()
-    in
-    let toResolve = Proposition<_>.MapAtom proposition mapper in
-    let revMap =
-        Seq.map swap map.GetRaw
-        |> Array.ofSeq
-        |> Array.sortBy fst
-        |> Array.map snd
-    in
-    toNnf toResolve
-    |> propToNnfProp
-    |> nnfPropToDNF
-    |> function
-    | DNFTrue -> trueDisj
-    | DNFFalse -> falseDisj
-    | DNFProps set ->
-        toMutuallyExclusive set
-        |> Set.map Set.toList
-        |> Set.toList
-        |> List.choose (simplifyConsistent revMap)
-        |> List.map ConjCmps
-        |> DisjConjCmps
+    let decomposePropToExclusiveConjCmps (proposition : Proposition<Compare>) =
+        let map = AutoIdxMap<StdCmp> () in
+        let mapper (isPos, cmp) =
+            let cmp = if isPos then cmp else negateCompare cmp in
+            match compareToStdCmps cmp with
+            | [ x ], _ -> Atom (true, map.LookUp x)
+            | [ x; y ], true ->
+                And [
+                    Atom (true, map.LookUp x)
+                    Atom (true, map.LookUp y)
+                ]
+            | [ x; y ], false ->
+                Or [
+                    Atom (true, map.LookUp x)
+                    Atom (true, map.LookUp y)
+                ]
+            | _ -> IMPOSSIBLE ()
+        in
+        let toResolve = Proposition<_>.MapAtom proposition mapper in
+        let revMap =
+            Seq.map swap map.GetRaw
+            |> Array.ofSeq
+            |> Array.sortBy fst
+            |> Array.map snd
+        in
+        toNnf toResolve
+        |> propToNnfProp
+        |> nnfPropToDNF
+        |> function
+        | DNFTrue -> trueDisj
+        | DNFFalse -> falseDisj
+        | DNFProps set ->
+            toMutuallyExclusive set
+            |> Set.map Set.toList
+            |> Set.toList
+            |> List.choose (simplifyConsistent revMap)
+            |> List.map ConjCmps
+            |> DisjConjCmps
 
-//type ValWithInfty =
-//    | NegInfty
-//    | Number of Numeric * hasEq:bool
-//    | PosInfty
-//
-///// (c <= obj) < (c < obj)
-//let lowerLe (l1 : ValWithInfty) l2 =
-//    match l1, l2 with
-//    | Number (c1, t1), Number (c2, t2) when c1 = c2 -> t2 <= t1  // REVERSE
-//    | _ -> l1 <= l2
-//let upperLe u1 u2 = u1 <= u2
-///// whether there is a period, so if they are the same, Le holds ONLY when
-//let isNonVoidPeriod l u =
-//    match l, u with
-//    | Number (c1, t1), Number (c2, t2) when c1 = c2 -> t1 && t2
-//    | _ -> l <= u
-///// if there is a gap -- if there is a possible value between the two
-///// up: upper bound of the previous (lower) range
-///// ln: lower bound of the next (higher) range
-//let hasGapBetween up ln =
-//    match up, ln with
-//    | Number (c1, t1), Number (c2, t2) when c1 = c2 -> not t1 && not t2
-//    | _ -> up < ln
-//
-//let private convertLowerBound l =
-//    match l with
-//    | None -> NegInfty
-//    | Some (v, hasEq) -> Number (v, hasEq)
-//let private convertUpperBound u =
-//    match u with
-//    | None -> PosInfty
-//    | Some (v, hasEq) -> Number (v, hasEq)
-//let private convertRange (l, u) =
-//    (convertLowerBound l, convertUpperBound u)
-//let private backToRange (vl, vu) =
-//    match vl, vu with
-//    | PosInfty, _ | _, NegInfty -> failwith "INTERNAL ERROR: impossible range."
-//    | NegInfty, PosInfty -> (None, None)
-//    | NegInfty, Number (c, hasEq) -> (None, Some (c, hasEq))
-//    | Number (c, than), PosInfty -> (Some (c, than), None)
-//    | Number (l, t_l), Number (u, t_u) -> (Some (l, t_l), Some (u, t_u))
+    //type ValWithInfty =
+    //    | NegInfty
+    //    | Number of Numeric * hasEq:bool
+    //    | PosInfty
+    //
+    ///// (c <= obj) < (c < obj)
+    //let lowerLe (l1 : ValWithInfty) l2 =
+    //    match l1, l2 with
+    //    | Number (c1, t1), Number (c2, t2) when c1 = c2 -> t2 <= t1  // REVERSE
+    //    | _ -> l1 <= l2
+    //let upperLe u1 u2 = u1 <= u2
+    ///// whether there is a period, so if they are the same, Le holds ONLY when
+    //let isNonVoidPeriod l u =
+    //    match l, u with
+    //    | Number (c1, t1), Number (c2, t2) when c1 = c2 -> t1 && t2
+    //    | _ -> l <= u
+    ///// if there is a gap -- if there is a possible value between the two
+    ///// up: upper bound of the previous (lower) range
+    ///// ln: lower bound of the next (higher) range
+    //let hasGapBetween up ln =
+    //    match up, ln with
+    //    | Number (c1, t1), Number (c2, t2) when c1 = c2 -> not t1 && not t2
+    //    | _ -> up < ln
+    //
+    //let private convertLowerBound l =
+    //    match l with
+    //    | None -> NegInfty
+    //    | Some (v, hasEq) -> Number (v, hasEq)
+    //let private convertUpperBound u =
+    //    match u with
+    //    | None -> PosInfty
+    //    | Some (v, hasEq) -> Number (v, hasEq)
+    //let private convertRange (l, u) =
+    //    (convertLowerBound l, convertUpperBound u)
+    //let private backToRange (vl, vu) =
+    //    match vl, vu with
+    //    | PosInfty, _ | _, NegInfty -> failwith "INTERNAL ERROR: impossible range."
+    //    | NegInfty, PosInfty -> (None, None)
+    //    | NegInfty, Number (c, hasEq) -> (None, Some (c, hasEq))
+    //    | Number (c, than), PosInfty -> (Some (c, than), None)
+    //    | Number (l, t_l), Number (u, t_u) -> (Some (l, t_l), Some (u, t_u))
 
-let private hasGapBetween (UpperBound up) (LowerBound ln) =
-    match up, ln with
-    | BVFinite (c1, t1), BVFinite (c2, t2) when c1 = c2 -> not t1 && not t2
-    | _ -> up < ln
+    let private hasGapBetween (UpperBound up) (LowerBound ln) =
+        match up, ln with
+        | BVFinite (c1, t1), BVFinite (c2, t2) when c1 = c2 -> not t1 && not t2
+        | _ -> up < ln
 
 
-let mergeRange (Range (l1, _) as r1) (Range (l2, _) as r2) =
-    let Range (l1, u1), Range (l2, u2) =
-        if l1 <= l2 then (r1, r2) else (r2, r1) in
-    if hasGapBetween u1 l2 then None
-    elif u2 <= u1 then Some $ Range (l1, u1)
-    else Some $ Range (l1, u2)
-    
-/// try match the ranges
-/// returns: the matched rangeMap
-let private matchRanges
-        (range1 : HashMap<_,_>)
-        (range2 : HashMap<_,_>) : HashMap<_,_> option =
-    let len1, len2 = HashMap.size range1, HashMap.size range2 in
-    let isDifferentFrom el (key, v) =
-        match HashMap.tryFind key el with
-        | Some v' -> if v = v' then None
-                     else Some (key, v, v')
-        | None -> None
-    in
-    // bs: base, el: else
-    /// if all the elements in `bs` are in and have the same value as in `el`
-    let (>-) bs el =
-        Seq.tryPick (isDifferentFrom el) bs
-        |> Option.isNone
-    in
-    match abs $ len1 - len2 with
-    | 0 ->
-        // they have the same key set length
-        // so, just find the one with difference
-        match Seq.tryPick (isDifferentFrom range2) range1 with
-        | None -> Some range1
-        | Some (key, v1, v2) ->
-            match mergeRange v1 v2 with
-            | Some newRange ->
-                // if the two can be merged, update them in both `range1` and `range2`
-                HashMap.add key newRange range1;
-                HashMap.add key newRange range2;
-                // then, now they should be the same, otherwise, they cannot be merged
-                if range1 >- range2 then Some range1 else None
+    let mergeRange (Range (l1, _) as r1) (Range (l2, _) as r2) =
+        let Range (l1, u1), Range (l2, u2) =
+            if l1 <= l2 then (r1, r2) else (r2, r1) in
+        if hasGapBetween u1 l2 then None
+        elif u2 <= u1 then Some $ Range (l1, u1)
+        else Some $ Range (l1, u2)
+        
+    /// try match the ranges
+    /// returns: the matched rangeMap
+    let private matchRanges
+            (range1 : HashMap<_,_>)
+            (range2 : HashMap<_,_>) : HashMap<_,_> option =
+        let len1, len2 = HashMap.size range1, HashMap.size range2 in
+        let isDifferentFrom el (key, v) =
+            match HashMap.tryFind key el with
+            | Some v' -> if v = v' then None
+                         else Some (key, v, v')
             | None -> None
-    | 1 ->
-        // there is exactly ONE element that is outStanding
-        // so, elements inside should all be the same for the shorter rangeMap in the longer
-        // and then, just erase this element is OK -- so, just return the shorter rangeMap
-        // if there is difference in the elements in the shorter, it means they cannot match
-        let shorter, longer = if len1 <= len2 then range1, range2 else range2, range1 in
-        // check whether elements in `shorter` are all contained and the same as in `longer`
-        if shorter >- longer then Some shorter else None
-    | _ -> None  // otherwise, they cannot match -- the difference between elements must > 1
+        in
+        // bs: base, el: else
+        /// if all the elements in `bs` are in and have the same value as in `el`
+        let (>-) bs el =
+            Seq.tryPick (isDifferentFrom el) bs
+            |> Option.isNone
+        in
+        match abs $ len1 - len2 with
+        | 0 ->
+            // they have the same key set length
+            // so, just find the one with difference
+            match Seq.tryPick (isDifferentFrom range2) range1 with
+            | None -> Some range1
+            | Some (key, v1, v2) ->
+                match mergeRange v1 v2 with
+                | Some newRange ->
+                    // if the two can be merged, update them in both `range1` and `range2`
+                    HashMap.add key newRange range1;
+                    HashMap.add key newRange range2;
+                    // then, now they should be the same, otherwise, they cannot be merged
+                    if range1 >- range2 then Some range1 else None
+                | None -> None
+        | 1 ->
+            // there is exactly ONE element that is outStanding
+            // so, elements inside should all be the same for the shorter rangeMap in the longer
+            // and then, just erase this element is OK -- so, just return the shorter rangeMap
+            // if there is difference in the elements in the shorter, it means they cannot match
+            let shorter, longer = if len1 <= len2 then range1, range2 else range2, range1 in
+            // check whether elements in `shorter` are all contained and the same as in `longer`
+            if shorter >- longer then Some shorter else None
+        | _ -> None  // otherwise, they cannot match -- the difference between elements must > 1
 
-/// two are mergeable iff:
-/// every term has the same range with at most one with different ranges 
-let tryMergeTwo conj1 conj2 =
-    let range1 = (collectTightRanges conj1).Value in
-    let range2 = (collectTightRanges conj2).Value in
-    matchRanges range1 range2
-    |> Option.map (genBoundsConjCompsFromItemBoundMap >> ConjCmps)
+    /// two are mergeable iff:
+    /// every term has the same range with at most one with different ranges 
+    let tryMergeTwo conj1 conj2 =
+        let range1 = (collectTightRanges conj1).Value in
+        let range2 = (collectTightRanges conj2).Value in
+        matchRanges range1 range2
+        |> Option.map (genBoundsConjCompsFromItemBoundMap >> ConjCmps)
 
-/// unify the term ranges as more as possible
-/// for example, (t - h > 1 /\ t - h < 2) \/ (t - h = 1) will be unified as (t - h >= 1 /\ t - h < 2)
-/// the key is to:
-/// 1. collect the (normalised) term range information
-/// 2. if all ranges of the variables can be merged, then merge the two
-///
-/// For a list of items, the algorithms goes by:
-/// take out the head, merge as more as possible the rest of the list
-/// for the merged head, there will be no more element possible to merge in the rest
-/// for the rest of the list that are not possible to merge the first, perform the above
-/// until the rest of the list that cannot merge with all of the previous merged elements is empty
-/// Finally, loop until the result has only one element or does not reduce any more
-let tryMerge canMergeTwo lst =
-    if List.length lst <= 1 then lst else
-    let rec mergeOneByOne merged lst =
-        match lst with
-        | [] -> merged, []
-        | hd :: lst -> match tryMergeTwo merged hd with
-                       | Some merged when canMergeTwo merged ->
-                           mergeOneByOne merged lst
-                       | _ -> let merged, lst = mergeOneByOne merged lst in
-                              merged, hd :: lst
-    in
-    let rec recMerge lst =
-        match lst with
-        | [] -> []
-        | hd :: lst -> let result, lst = mergeOneByOne hd lst in
-                       result :: recMerge lst
-    in
-    // loop until recMerge does not reduce any more
-    let rec loop lst =
-        match lst with
-        | [] -> IMPOSSIBLE ()
-        | [ _ ] -> lst
-        | lst -> let nextLst = recMerge lst in
-                 if nextLst.Length < lst.Length then loop nextLst else nextLst
-    in
-    loop lst
+    /// unify the term ranges as more as possible
+    /// for example, (t - h > 1 /\ t - h < 2) \/ (t - h = 1) will be unified as (t - h >= 1 /\ t - h < 2)
+    /// the key is to:
+    /// 1. collect the (normalised) term range information
+    /// 2. if all ranges of the variables can be merged, then merge the two
+    ///
+    /// For a list of items, the algorithms goes by:
+    /// take out the head, merge as more as possible the rest of the list
+    /// for the merged head, there will be no more element possible to merge in the rest
+    /// for the rest of the list that are not possible to merge the first, perform the above
+    /// until the rest of the list that cannot merge with all of the previous merged elements is empty
+    /// Finally, loop until the result has only one element or does not reduce any more
+    let tryMerge canMergeTwo lst =
+        if List.length lst <= 1 then lst else
+        let rec mergeOneByOne merged lst =
+            match lst with
+            | [] -> merged, []
+            | hd :: lst -> match tryMergeTwo merged hd with
+                           | Some merged when canMergeTwo merged ->
+                               mergeOneByOne merged lst
+                           | _ -> let merged, lst = mergeOneByOne merged lst in
+                                  merged, hd :: lst
+        in
+        let rec recMerge lst =
+            match lst with
+            | [] -> []
+            | hd :: lst -> let result, lst = mergeOneByOne hd lst in
+                           result :: recMerge lst
+        in
+        // loop until recMerge does not reduce any more
+        let rec loop lst =
+            match lst with
+            | [] -> IMPOSSIBLE ()
+            | [ _ ] -> lst
+            | lst -> let nextLst = recMerge lst in
+                     if nextLst.Length < lst.Length then loop nextLst else nextLst
+        in
+        loop lst
 
 end
 #warnon "58"
@@ -1271,7 +1271,7 @@ type private PathDivisionImpl(input) =
 //        |> curry List.Cons basicCondition
 //        |> And
     
-    /// given two conjCmps from TWO DIFFERENT GUARDS
+    /// given two conjCmps from TWO DIFFERENT GUARDS of TWO DIFFERENT LOCATIONS
     /// returns 3 propositions:
     /// 1. the random var overlapping condition and their ranges
     /// 2. the first non-rand-var condition

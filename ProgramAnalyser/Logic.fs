@@ -228,7 +228,7 @@ module Parser = begin
             | "/" -> AOperation (OpDiv, List.map nodeToArithExpr children)
             | "let" ->
                 match children with
-                | NList bindings :: expr :: [] ->
+                | NList bindings :: [ expr ] ->
                     let map = bindingsToMap bindings in
                     let arithExpr = nodeToArithExpr expr in
                     substVars arithExpr map
@@ -469,84 +469,84 @@ let rec toNnf (prop: Proposition<'a>) : Proposition<'a> =
 #nowarn "58"
 
 module DisjunctiveNormal = begin
-/// assume the Negative Normal Form of the proposition
-/// and the atomic will contain also the negation information
-type NnfProp<'a> =
-    | LTrue
-    | LFalse
-    | LAtom of 'a
-    | LOr of NnfProp<'a> list
-    | LAnd of NnfProp<'a> list
+    /// assume the Negative Normal Form of the proposition
+    /// and the atomic will contain also the negation information
+    type NnfProp<'a> =
+        | LTrue
+        | LFalse
+        | LAtom of 'a
+        | LOr of NnfProp<'a> list
+        | LAnd of NnfProp<'a> list
 
-/// \/_i ( /\_j a_{i, j} )
-type DisjunctiveNormalProp<'a when 'a : comparison> =
-    | DNFTrue
-    | DNFFalse
-    | DNFProps of Set<Set<'a>>
+    /// \/_i ( /\_j a_{i, j} )
+    type DisjunctiveNormalProp<'a when 'a : comparison> =
+        | DNFTrue
+        | DNFFalse
+        | DNFProps of Set<Set<'a>>
 
-let rec nnfPropToDNF lp =
-    match lp with
-    | LTrue -> DNFTrue
-    | LFalse -> DNFFalse
-    | LAtom a -> DNFProps $ Set.singleton (Set.singleton a)
-    | LOr lst ->
-        let folder prevRes nEle =
-            match prevRes with
-            | DNFTrue -> DNFTrue
-            | DNFFalse -> nnfPropToDNF nEle
-            | DNFProps set ->
-                match nnfPropToDNF nEle with
+    let rec nnfPropToDNF lp =
+        match lp with
+        | LTrue -> DNFTrue
+        | LFalse -> DNFFalse
+        | LAtom a -> DNFProps $ Set.singleton (Set.singleton a)
+        | LOr lst ->
+            let folder prevRes nEle =
+                match prevRes with
                 | DNFTrue -> DNFTrue
-                | DNFFalse -> prevRes
-                | DNFProps set' -> DNFProps $ Set.union set set'
-        in
-        List.fold folder DNFFalse lst
-    | LAnd lst ->
-        let folder prevRes nextElement =
-            match prevRes with
-            | DNFTrue -> nnfPropToDNF nextElement
-            | DNFFalse -> DNFFalse
-            | DNFProps set ->
-                match nnfPropToDNF nextElement with
-                | DNFTrue -> prevRes
+                | DNFFalse -> nnfPropToDNF nEle
+                | DNFProps set ->
+                    match nnfPropToDNF nEle with
+                    | DNFTrue -> DNFTrue
+                    | DNFFalse -> prevRes
+                    | DNFProps set' -> DNFProps $ Set.union set set'
+            in
+            List.fold folder DNFFalse lst
+        | LAnd lst ->
+            let folder prevRes nextElement =
+                match prevRes with
+                | DNFTrue -> nnfPropToDNF nextElement
                 | DNFFalse -> DNFFalse
-                | DNFProps set' ->
-                    Seq.allPairs (Set.toSeq set) (Set.toSeq set')
-                    |> Seq.map (uncurry Set.union)
-                    |> Set.ofSeq
-                    |> DNFProps
+                | DNFProps set ->
+                    match nnfPropToDNF nextElement with
+                    | DNFTrue -> prevRes
+                    | DNFFalse -> DNFFalse
+                    | DNFProps set' ->
+                        Seq.allPairs (Set.toSeq set) (Set.toSeq set')
+                        |> Seq.map (uncurry Set.union)
+                        |> Set.ofSeq
+                        |> DNFProps
+            in
+            List.fold folder DNFTrue lst
+
+    /// to check whether there exists some `a` such that `a` and `Neg a` exist at the same time
+    let isConsistent (seq : seq<bool * 'a>) =
+        let hashSave = HashMap () in
+        let findInconsistency (isPos, atom) =
+            match HashMap.tryFind atom hashSave with
+            | Some posVal -> isPos <> posVal
+            | None -> HashMap.add atom isPos hashSave; false
         in
-        List.fold folder DNFTrue lst
+        Option.isNone $ Seq.tryFind findInconsistency seq
 
-/// to check whether there exists some `a` such that `a` and `Neg a` exist at the same time
-let isConsistent (seq : seq<bool * 'a>) =
-    let hashSave = HashMap () in
-    let findInconsistency (isPos, atom) =
-        match HashMap.tryFind atom hashSave with
-        | Some posVal -> isPos <> posVal
-        | None -> HashMap.add atom isPos hashSave; false
-    in
-    Option.isNone $ Seq.tryFind findInconsistency seq
-
-/// obtain a list of formally consistent while mutually exclusive rules
-let toMutuallyExclusive (clauses : Set<Set<bool * 'a>>) =
-    let consistentClauses = Set.filter (Set.toSeq >> isConsistent) clauses in
-    let allAtoms = Set.unionMany $ Set.map (Set.map snd) consistentClauses in
-    let expand set =
-        Set.map snd set
-        // obtain those not mentioned
-        |> Set.difference allAtoms
-        // expand each of these elements and then enumerate them separately
-        |> Set.toList
-        |> List.fold (fun sets a ->
-            List.map (curry List.Cons (true, a)) sets ++
-            List.map (curry List.Cons (false, a)) sets) [ Set.toList set ]
-        |> List.map Set.ofList
-    in
-    Set.toList consistentClauses
-    |> List.map expand
-    |> List.concat
-    |> Set.ofSeq
+    /// obtain a list of formally consistent while mutually exclusive rules
+    let toMutuallyExclusive (clauses : Set<Set<bool * 'a>>) =
+        let consistentClauses = Set.filter (Set.toSeq >> isConsistent) clauses in
+        let allAtoms = Set.unionMany $ Set.map (Set.map snd) consistentClauses in
+        let expand set =
+            Set.map snd set
+            // obtain those not mentioned
+            |> Set.difference allAtoms
+            // expand each of these elements and then enumerate them separately
+            |> Set.toList
+            |> List.fold (fun sets a ->
+                List.map (curry List.Cons (true, a)) sets ++
+                List.map (curry List.Cons (false, a)) sets) [ Set.toList set ]
+            |> List.map Set.ofList
+        in
+        Set.toList consistentClauses
+        |> List.map expand
+        |> List.concat
+        |> Set.ofSeq
 
 end
 

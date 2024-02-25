@@ -61,8 +61,8 @@ type ArgAnalysisResult = {
 
 let private checkHasExtension (name : string) ext =
     let realExt = Path.GetExtension name in
-    if realExt = ext then name
-    else failwith $"{name} should be of \".{ext}\" type."
+    if realExt[1..] = ext then name
+    else failwith $"\"{name}\" should be of \".{ext}\" type, but has \".{realExt}\" type."
 
 let private checkShouldExist obj objName =
     match obj with
@@ -166,6 +166,10 @@ let rec private argAnalysis args acc =
                 fileName = Some $ checkHasExtension fileName "program"
         }
 
+/// <summary>
+/// Runs argument analysis on the given arguments and executes the appropriate action based on the analysis.
+/// </summary>
+/// <param name="args">The arguments to analyze.</param>
 let runArgAnalysis args =
     let argResult = argAnalysis args $ defaultArgResult () in
     let anaCtx = argResultsToAnalysisContext argResult in

@@ -78,13 +78,13 @@ type Numeric =
         (Numeric i) / r
     static member (/) (r : Numeric, i : int) =
         r / (Numeric i)
-    static member (+) (r1 : Numeric, r2 : Numeric) =
+    static member (+) (r1 : Numeric, r2 : Numeric) : Numeric =
         Numeric (r1.getR () + r2.getR ()).CanonicalForm
-    static member (*) (r1 : Numeric, r2 : Numeric) =
+    static member (*) (r1 : Numeric, r2 : Numeric) : Numeric =
         Numeric (r1.getR () * r2.getR ()).CanonicalForm
-    static member (-) (r1 : Numeric, r2 : Numeric) =
+    static member (-) (r1 : Numeric, r2 : Numeric) : Numeric =
         Numeric (r1.getR () - r2.getR ()).CanonicalForm
-    static member (/) (r1 : Numeric, r2 : Numeric) =
+    static member (/) (r1 : Numeric, r2 : Numeric) : Numeric =
         if r2.getR () = Rational.Zero then
             failwith "Try dividing 0."
         Numeric (r1.getR () / r2.getR ()).CanonicalForm

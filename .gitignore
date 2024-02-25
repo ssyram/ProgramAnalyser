@@ -6,3 +6,5 @@ ProgramAnalyser/*.fsyacc.output
 ProgramAnalyser/Lexer.fs
 ProgramAnalyser/Parser.fs
 ProgramAnalyser/Parser.fsi
+global.json
+qodana.yaml
