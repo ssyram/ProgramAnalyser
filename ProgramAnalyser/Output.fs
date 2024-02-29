@@ -33,6 +33,9 @@ type ProgramAnalysisInput = {
 #nowarn "58"
 module private Impl = begin
 
+    /// <summary>
+    /// Represents the possible types of programs.
+    /// </summary>
     type ProgramType =
         | ScoreRecursive
         | NonScoreRecursive
@@ -41,6 +44,9 @@ module private Impl = begin
             | ScoreRecursive -> "score_recursive"
             | NonScoreRecursive -> "non_score_recursive"
 
+    ///<summary>
+    /// Represents information about an output program.
+    ///</summary>
     type OutInfo = {
         programName : string
         programType : ProgramType
@@ -150,6 +156,7 @@ module private Impl = begin
         debugPrint $"New Invariant: \"{newPreLoopGuard}\",\nCompared to the old: \"{program.preLoopGuard}\"."
         { program with preLoopGuard = newPreLoopGuard }
 
+    /// to create a local context that captures the local information within a type
     type OutputAnalysis(input : ProgramAnalysisInput) =
         
         // extract the input and initialise the variables to be used below
@@ -256,33 +263,48 @@ module private Impl = begin
             |> simplifyGeConj
             |> toString
         
+        /// Collects all updates pairs in a given conditional path of the form [(var, expr)]
+        let rec collectCondUpdates (ConditionalPath (_, ess, nextParts)) =
+            List.map collectProbUpdates nextParts
+            |> List.concat
+            |> List.append (collectUpdates ess)
+        /// Collects all updates pairs in a given probability path of the form [(var, expr)]
+        and collectProbUpdates (ProbPath (_, ess, nextParts)) =
+            if nextParts <> [] then failwith "Invalid path pattern: if (bool) inside if prob ()."
+            collectUpdates ess
+        /// Collects all updates pairs in a given list of statements
+        and collectUpdates lst =
+            flip List.choose lst $ function
+                | ESAssign (var, toUpdate) -> Some (var, toUpdate)
+                | ESScore _ | ESBreak      -> None
+        
         /// number_of_paths
         /// {
         ///     update_paths
         ///     condition ` @` involved_random_vars
         /// }+
+        ///
+        /// condition is given by `LoopGuard & InvGuard & PathGuard`
+        /// Hence for probability paths, just `LoopGuard & InvGuard` without PathGuard
         let truncation_paths_information () =
             let genGuard guard =
                 let guardGeConj =
                     match propToValidGeConj LossConfirm $ boolExprToProposition guard with
                     | [ x ] -> x
-                    | _ -> failwith "Invalid Guard: cannot convert to the target guard"
+                    | guard ->
+                        let str =
+                            String.concat " "
+                                [
+                                    "Invalid Guard: cannot convert to the target guard"
+                                    "when generating truncation information, as it is not purely and"
+                                    $"guard: {guard}"
+                                ]
+                        in
+                        failwith str
                 in
                 simplifyGeConj $ concatGeConj loopAndInvGeConj guardGeConj
             in
             let generatePathsInfo () =
-                let rec collectCondUpdates (ConditionalPath (_, ess, nextParts)) =
-                    List.map collectProbUpdates nextParts
-                    |> List.concat
-                    |> List.append (collectUpdates ess)
-                and collectProbUpdates (ProbPath (_, ess, nextParts)) =
-                    if nextParts <> [] then failwith "Invalid path pattern: if (bool) inside if prob ()."
-                    collectUpdates ess
-                and collectUpdates lst =
-                    flip List.choose lst $ function
-                        | ESAssign (var, toUpdate) -> Some (var, toUpdate)
-                        | ESScore _ | ESBreak      -> None
-                in
                 let getInvolvedRandVarsFromUpdates updates =
                     List.map snd updates
                     |> List.map collectVars
