@@ -1,0 +1,5 @@
+r_0~sample uniform(0,3)
+r_1~sample uniform(0,0.5)
+r_2~sample uniform(0,0.4)
+r_3~sample uniform(0,0.4)
+r_4~sample uniform(0,0.5)

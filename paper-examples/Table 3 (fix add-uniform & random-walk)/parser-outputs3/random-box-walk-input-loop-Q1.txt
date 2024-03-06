@@ -1,0 +1,128 @@
+random-box-walk-loop@non_weight_recursive
+p_x p_t
+2
+r_1@CU@0 0.5
+r_1@CU@0.5 1
+non-truncation@direct
+no-endscoring
+locations@2
+loc=1
+probs=1 1
+2
+assignment#p_x:=p_x-r_1
+assignment#p_t:=p_t+r_1
+2
+assignment#p_x:=p_x+r_2
+assignment#p_t:=p_t+r_2
+11
+sting
+p_x+0.8>=0 and -0.3-p_x>=0 and p_t>=0 and 9.5-p_t>=0
+next_locs=1 -10#1
+abnormal
+1
+r_1@expectation@0 p_x+0.8
+abnormal
+1
+r_1@expectation@p_x+0.8 0.5
+abnormal
+1
+r_2@expectation
+sting
+p_x+0.8>=0 and -0.3-p_x>=0 and p_t-9.5>=0 and 10-p_t>=0 and 9.2-p_t-p_x>=0
+next_locs=1 -10#1
+abnormal
+1
+r_1@expectation@0 p_x+0.8
+abnormal
+1
+r_1@expectation@p_x+0.8 10-p_t
+abnormal
+1
+r_2@expectation
+sting
+p_x+0.8>=0 and -0.3-p_x>=0 and p_t-9.5>=0 and 10-p_t>=0 and p_t+p_x-9.2>=0
+next_locs=1#1
+abnormal
+1
+r_1@expectation@0 p_x+0.8
+abnormal
+1
+r_2@expectation
+sting
+p_x+0.3>=0 and -0.2-p_x>=0 and p_t>=0 and 10-p_t>=0
+next_locs=1#1
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+sting
+p_x+0.2>=0 and 0.3-p_x>=0 and p_t>=0 and 9-p_t>=0
+next_locs=1#1 -10
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation@0.5 0.8-p_x
+abnormal
+1
+r_2@expectation@0.8-p_x 1
+sting
+p_x+0.2>=0 and 0.3-p_x>=0 and p_t-9>=0 and 10-p_t>=0 and 9.2-p_t+p_x>=0
+next_locs=1#1 -10
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation@0.5 0.8-p_x
+abnormal
+1
+r_2@expectation@0.8-p_x 10-p_t
+sting
+p_x+0.2>=0 and 0.3-p_x>=0 and p_t-9>=0 and 10-p_t>=0 and -9.2+p_t-p_x>=0
+next_locs=1#1
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation@0.5 0.8-p_x
+sting
+p_x-0.3>=0 and 0.8-p_x>=0 and p_t>=0 and 9-p_t>=0
+next_locs=1#-10
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+sting
+p_x-0.3>=0 and 0.8-p_x>=0 and p_t-9>=0 and 9.5-p_t>=0
+next_locs=1#-10
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation@0.5 10-p_t
+sting
+p_x-0.3>=0 and 0.8-p_x>=0 and p_t-9.5>=0 and 10-p_t>=0
+next_locs=1#0
+abnormal
+1
+r_1@expectation@0 0.5
+normal
+sting
+p_x+0.8>=0 and 0.8-p_x>=0 and p_t-10>=0 and 11-p_t>=0
+next_locs=0#0
+normal
+normal
+out
+
+
+
+
+

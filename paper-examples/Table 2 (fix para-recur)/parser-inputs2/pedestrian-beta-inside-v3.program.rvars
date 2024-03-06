@@ -1,0 +1,2 @@
+r_1~sample uniform(0,3)
+r_2~sample beta(3,3)

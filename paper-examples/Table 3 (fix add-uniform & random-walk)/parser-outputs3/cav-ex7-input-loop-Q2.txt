@@ -1,0 +1,49 @@
+cav-ex7-loop@non_weight_recursive
+p_c p_i
+0
+non-truncation@direct
+2
+p_c:=p_c+1@p_i:=p_i+1
+p_c>=0 and p_i>=0 and 4-p_i>=0
+p_c:=p_c+1
+p_c>=0 and p_i>=0 and 4-p_i>=0
+sting
+p_c>=0 and p_i>=0 and 4-p_i>=0
+no-endscoring
+locations@2
+loc=1
+probs=1-0.2*p_i 0.2*p_i
+2
+assignment#p_c:=p_c+1
+assignment#p_i:=p_i+1
+1
+assignment#p_c:=p_c+1
+4
+sting
+p_i>=0 and 3-p_i>=0 and p_c>=0 and 40-p_c>=0
+next_locs=1#1
+normal
+normal
+sting
+p_i-3>=0 and 4-p_i>=0 and p_c>=0 and 39-p_c>=0
+next_locs=-10#1
+normal
+normal
+sting
+p_i-3>=0 and 4-p_i>=0 and p_c-39>=0 and 40-p_c>=0
+next_locs=0#1
+normal
+normal
+sting
+p_i>=0 and 4-p_i>=0 and p_c-40>=0 and 41-p_c>=0
+next_locs=0#0
+normal
+normal
+out
+
+
+ 
+
+
+
+ 

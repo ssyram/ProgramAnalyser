@@ -1,0 +1,41 @@
+p_money:=10;
+p_i:=0;
+
+[p_i>=0 and p_money>=3]
+while p_money >= 10 do
+   p_money:=p_money-r_1;
+   if prob(0.94737) then
+      if prob(0.33333) then
+         if prob(0.5) then
+            p_money:=p_money+1.5*r_1
+         else
+            p_money:=p_money+1.1*r_1
+         fi
+      else
+         if prob(0.5) then
+            if prob(0.33333) then
+               p_money:=p_money+1.5*r_1
+            else
+               p_money:=p_monet+1.1*r_1
+            fi
+         else
+            if prob(0.66667) then
+               p_money:=p_money+0.3*r_1
+            else
+               skip
+            fi
+         fi
+      fi
+   else
+      skip
+   fi;
+   p_i:=p_i+1
+od;
+if p_i<=10 then
+   score(1)
+else
+   score(0)
+fi
+end
+
+

@@ -114,6 +114,7 @@ let NUMERIC_ONE = Numeric Rational.One
 
 module Flags =
     let mutable DEBUG = true
+    let DEFAULT_CONFIG_VAR_RANGE = (Numeric 0, Numeric 5)
     
 let debugPrint x =
     if Flags.DEBUG then printfn $"{x}"

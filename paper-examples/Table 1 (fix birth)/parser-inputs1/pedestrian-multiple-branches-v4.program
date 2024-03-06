@@ -1,0 +1,19 @@
+p_pos:=r_0;
+p_dis:=0;
+
+[p_dis>=0]
+while p_pos>=0 do
+  if p_pos>=1.5 then
+     p_pos:=p_pos+r_1
+  elseif 1<=p_pos<1.5
+     p_pos:=p_pos+r_2
+  elseif 0.5<=p_pos<1
+     p_pos:=p_pos+r_3
+  elseif p_pos<0.5
+     p_pos:=p_pos+r_4
+  fi;
+  p_dis:=p_dis+r_5
+od;
+score(p_dis);
+return p_pos
+end

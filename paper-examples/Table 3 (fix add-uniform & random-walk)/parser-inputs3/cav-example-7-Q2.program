@@ -1,0 +1,20 @@
+p_count:=0;
+p_i:=0;
+
+[p_count>=0 and p_i>=0]
+while p_i <= 4 do
+   p_count:=p_count+1;
+   if prob(1-0.2*p_i) then
+      p_i:=p_i+1
+   else
+      skip
+   fi
+od;
+if p_count<=40 then
+   score(1)
+else
+   score(0)
+fi
+end
+
+

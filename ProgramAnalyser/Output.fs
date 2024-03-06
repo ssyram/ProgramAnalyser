@@ -4,9 +4,10 @@ open System
 open Global
 open Microsoft.FSharp.Reflection
 open ProgramAnalyser.Analysis
+open ProgramAnalyser.Global
 open ProgramAnalyser.Logic
+open ProgramAnalyser.Objects
 open ProgramAnalyser.ParserSupport
-open Objects
 open ProgramAnalyser.Utils
 open Polynomial
 
@@ -18,6 +19,21 @@ type ProgramTerminationType =
         FSharpValue.GetUnionFields(x, typeof<ProgramTerminationType>)
         |> function
            | (info, _) -> info.Name[3..].ToLower ()  // remove PTT and then print in the lower case
+            
+/// from the list, generate the output information
+let fromListGenOutput lst =
+    String.concat "\n" $ List.filter (fun x -> x.Length > 0) lst
+    
+let getBothVars program randVars =
+    let oriRvMap = Map.ofSeq randVars in
+    let folder (set, map) var =
+        match Map.tryFind var oriRvMap with
+        | Some dist -> (set, Map.add var dist map)
+        | None      -> (Set.add var set, map)
+    in
+    collectUsedVarsFromProgram program
+    |> Set.toList
+    |> List.fold folder (Set.empty, Map.empty)
 
 type ProgramAnalysisInput = {
     programName : string
@@ -163,7 +179,7 @@ module private Impl = begin
         let programName = input.programName
         /// the simplified program
         /// use this rather than the above one
-        let program = simplifyProgram input.program
+        let program = input.program
         /// the truly used program variables and random variables
         let programVars, randomVars =
             let oriRvMap = Map.ofSeq input.randomVars in
@@ -207,6 +223,11 @@ module private Impl = begin
             else NonScoreRecursive
             
         let loopInvariant = boolExprToProposition program.preLoopGuard
+        
+        // let loopInv =
+        //     match propToValidGeConj LossConfirm loopInvariant with
+        //     | [ x ] -> x
+        //     | _     -> IMPOSSIBLE ()
             
         let list_of_all_non_random_program_variables =
             Set.toSeq programVars
@@ -226,10 +247,6 @@ module private Impl = begin
             Map.toSeq randomVars
             |> Seq.map (fun (var, dist) -> $"{var}" @ printDistDecl dist)
             |> String.concat "\n"
-            
-        /// from the list, generate the output information
-        let fromListGenOutput lst =
-            String.concat "\n" $ List.filter (fun x -> x.Length > 0) lst
             
         let sting = "sting"
         
@@ -578,6 +595,7 @@ module private Impl = begin
         let outputSting (Sting (guard, nextLocs)) =
             let sting_guard =
                 conjCmpsToGeConj LossConfirm guard
+                // |> concatGeConj loopInv
                 |> simplifyGeConj
                 |> toString
             in
@@ -1082,3 +1100,77 @@ end
 let genOutput input =
     let analyser = Impl.OutputAnalysis input in
     analyser.GenerateOutput ()
+
+type ConfigCtx =
+    {
+        cfgProgram : Program
+        cfgRandVars : (Variable * Distribution) list
+        cfgDegOne : uint
+        cfgDegTwo : uint
+        cfgDefDivM : uint
+        cfgVarDivM : Map<Variable, uint>
+        cfgVarRanges : Map<Variable, Numeric * Numeric>
+    }
+
+let private declVarRanges progVars ctx =
+    let declAVar var =
+        let (min, max) =
+            match Map.tryFind var ctx.cfgVarRanges with
+            | Some range -> range
+            | None -> Flags.DEFAULT_CONFIG_VAR_RANGE
+        in
+        toString var + "@" + min.ToString "float" + " " + max.ToString "float"
+    in
+    Set.toList progVars
+    |> List.map declAVar
+    |> fromListGenOutput
+    
+let printDistRange (Distribution (distTy, arg)) =
+    let arg = flip List.map arg $ fun x -> x.ToString "float" in
+    match distTy, arg with
+    | DContinuousUniform, [x; y] -> $"{x} {y}"
+    | DBeta, [_; _] -> $"0 1"
+    | _ -> failwith "Unknown way to declare distribution."
+
+let private declProgVarInitVal usedVars ctx =
+    let randVars = Map.ofSeq ctx.cfgRandVars in
+    let analyseExpr var expr =
+        match expr with
+        | AConst c -> $"constant@{c}"
+        | AVar rv ->
+            let dist =
+                match Map.tryFind rv randVars with
+                | Some dist -> dist
+                | None ->
+                    failwith
+                        $"Invalid starting assignment \"{var} = {expr}\" -- neither constant nor random variable."
+            in
+            let divM =
+                Option.defaultValue ctx.cfgDefDivM $ Map.tryFind var ctx.cfgVarDivM
+            in
+            $"random@{printDistRange dist}@{divM}"
+        | _ -> failwith $"Invalid starting assignment \"{var} = {expr}\" -- neither constant nor random variable."
+    in
+    let analyse var expr = toString var + "@" + analyseExpr var expr in
+    let declAnAssn assn =
+        match assn with
+        | STAssn (var, expr) ->
+            if Set.contains var usedVars then analyse var expr
+            else ""
+        | _ -> IMPOSSIBLE ()
+    in
+    ctx.cfgProgram.assnLst
+    |> List.map declAnAssn
+    |> fromListGenOutput
+
+let genConfigOutput input =
+    let progVars = fst $ getBothVars input.cfgProgram input.cfgRandVars in
+    [
+        toString input.cfgDegOne
+        toString input.cfgDegTwo
+        declVarRanges progVars input
+        "no_common_invs"
+        "initial_inputs"
+        declProgVarInitVal progVars input
+    ]
+    |> fromListGenOutput

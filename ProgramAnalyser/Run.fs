@@ -5,6 +5,7 @@ open System.IO
 open Microsoft.FSharp.Reflection
 open ProgramAnalyser
 open ProgramAnalyser.Global
+open ProgramAnalyser.Objects
 open ProgramAnalyser.Output
 open ProgramAnalyser.ParserSupport
 open Utils
@@ -16,12 +17,34 @@ type AnalysisContext = {
     endLoopScoreAccuracy : string option
 }
 
+type ArgAnalysisResult = {
+    fileName : string option
+    outFilePath : string option
+    toTruncate : bool option
+    terminationType : ProgramTerminationType option
+    endLoopScoreAccuracy : string option
+    /// by default 60
+    globalDivisionM : int
+    /// var |-> m
+    varDivisionM : Map<string, int>
+    /// var |-> (min, max)
+    /// by default (0, 5)
+    /// see Flags.DEFAULT_CONFIG_VAR_RANGE
+    specifiedRanges : Map<string, Numeric * Numeric>
+    /// by default 6
+    degree1 : int
+    /// by default 6
+    degree2 : int
+}
+
 let inline runGenOutput input =
     genOutput input
 
-let inline runParseAnalysis input =
-    let programPath = input.programPath in
+/// returns: (main, Maybe config)
+let inline runParseAnalysis main maybeArgs =
+    let programPath = main.programPath in
     let (RandomVarList lst), program = Input.parseByPath programPath in
+    let program = simplifyProgram program in
     let randVarRanges =
         Map.ofSeq $ List.map (BiMap.sndMap getDistDomainRange) lst
     in
@@ -31,33 +54,57 @@ let inline runParseAnalysis input =
             programName = programName
             program = program
             randomVars = lst
-            toTruncate = input.toTruncate
-            terminationType = input.terminationType
+            toTruncate = main.toTruncate
+            terminationType = main.terminationType
             randVarRanges = randVarRanges
-            endLoopScoreAccuracy = input.endLoopScoreAccuracy
+            endLoopScoreAccuracy = main.endLoopScoreAccuracy
         }
     in
-    runGenOutput input
+    let main = runGenOutput input in
+    
+    match maybeArgs with
+    | Some args ->
+        let varDivM =
+            Map.toList args.varDivisionM
+            |> List.map (fun (k, v) -> (Variable k, uint v))
+            |> Map.ofList in
+        let varRanges =
+            Map.toList args.specifiedRanges
+            |> List.map (fun (k, v) -> (Variable k, v))
+            |> Map.ofList in
+        let cfgInput =
+            {
+                cfgProgram = program
+                cfgRandVars = lst
+                cfgDegOne = uint args.degree1
+                cfgDegTwo = uint args.degree2
+                cfgDefDivM = uint args.globalDivisionM
+                cfgVarDivM = varDivM
+                cfgVarRanges = varRanges 
+            }
+        in
+        let cfg = genConfigOutput cfgInput in
+        (main, Some cfg)
+    | None -> (main, None)
 
-let inline runPrintingOut input (outPath : string option) =
-    let pPath = input.programPath in
-    let outPath =
-        match outPath with
-        | Some path -> path
-        | None ->
-            let path = Path.GetDirectoryName pPath in
-            let fileName = Path.ChangeExtension (Path.GetFileName pPath, "txt") in
-            Path.Combine (path, fileName)
+let inline runPrintingOut (mainInput, args) (outPath : string option) =
+    let pPath = mainInput.programPath in
+    let fileName = Path.GetFileNameWithoutExtension pPath in
+    let mainFileName = fileName + ".main.txt" in
+    let configFileName = fileName + ".config.txt" in
+    let (outMainPath, outConfigPath) =
+        let path = match outPath with
+                   | Some path -> path
+                   | None -> Path.GetDirectoryName pPath in
+        (Path.Combine (path, mainFileName), Path.Combine (path, configFileName))
     in
-    File.WriteAllText (outPath, runParseAnalysis input)
-
-type ArgAnalysisResult = {
-    fileName : string option
-    outFilePath : string option
-    toTruncate : bool option
-    terminationType : ProgramTerminationType option
-    endLoopScoreAccuracy : string option
-}
+    let timing = System.Diagnostics.Stopwatch () in
+    timing.Start ();
+    let main, cfg = runParseAnalysis mainInput args in
+    File.WriteAllText (outMainPath, main);
+    // File.WriteAllText (outConfigPath, )
+    let time = timing.Elapsed in
+    debugPrint $"Time generating {Path.GetFileName pPath}: {time}"
 
 let private checkHasExtension (name : string) ext =
     let realExt = Path.GetExtension name in
@@ -75,6 +122,11 @@ let defaultArgResult () = {
     toTruncate = None
     terminationType = None
     endLoopScoreAccuracy = None
+    globalDivisionM = 60
+    varDivisionM = Map.empty
+    specifiedRanges = Map.empty
+    degree1 = 6
+    degree2 = 6
 }
 
 let argResultsToAnalysisContext argRes =
@@ -125,6 +177,114 @@ let private checkValidPath (path : string) =
         |> fun s ->
             failwith $"Invalid path: {path}, containing invalid character(s): {s}."
 
+let private getPosIntVal str =
+    try
+        let ret = Int32.Parse str in
+        if ret < 0 then None
+        else Some ret
+    with | _ -> None
+
+let private getNumeric str =
+    try Some $ Numeric.Parse str
+    with | _ -> None
+
+/// -m:number
+/// OR
+/// -Mname:number
+/// returns: Maybe (Maybe Name, Int)
+let parseMSpec (str : string) =
+    let addNoName x = (None, x) in
+    let getVal (str : string) =
+        if str[2] <> ':' then None
+        else Option.map addNoName $ getPosIntVal (str[3..])
+    in
+    let addName name v = (Some name, v) in
+    let getNameAndVal (str : string) =
+        let divPos = str.IndexOf ':' in
+        if divPos = -1 then None
+        elif divPos = 2 then None
+        else Option.map (addName str[2..divPos-1]) $ getPosIntVal str[divPos+1..]
+    in
+    if str.Length <= 2 then None
+    elif str.StartsWith "-m" then getVal str
+    elif str.StartsWith "-M" then getNameAndVal str
+    else None
+
+let private testExamples exec examples =
+    let printer x =
+        let res = exec x in
+        printfn $"{x} |-> {res}"
+    in
+    List.iter printer examples
+    printfn "Done"
+
+/// passed
+let testParseMSpec () =
+    testExamples parseMSpec [
+            "-m"
+            "-m:"
+            "-m:-1"
+            "-m:80"
+            "-M"
+            "-M:100"
+            "-Mp_t:100"
+        ]
+
+/// -Rname:min~max
+/// example:
+/// -Rp_t:0~5
+let parseVarRange (str : string) =
+    let nameDivPos = str.IndexOf ':' in
+    let valDivPos = str[nameDivPos..].IndexOf '~' in
+    let analyse () =
+        let valDivPos = valDivPos + nameDivPos in
+        let varName = str[2..nameDivPos-1] in
+        let min = getNumeric str[nameDivPos+1..valDivPos-1] in
+        let max = getNumeric str[valDivPos+1..] in
+        match (min, max) with
+        | (Some min, Some max) -> Some (varName, (min, max))
+        | _ -> None
+    in
+    if str.StartsWith "-R" &&
+       nameDivPos <> -1 &&
+       nameDivPos <> 2 &&
+       valDivPos <> -1 then
+        analyse ()
+    else None
+
+/// passed
+let testParseVarRange () =
+    testExamples parseVarRange [
+        "-a"
+        "-R"
+        "-Rvar:"
+        "-R:"
+        "-R:4"
+        "-R:10-a"
+        "-Rr_t:2~10"
+        "-Rp_t:0~0.1"
+        "-Rp_x:-0.8~0.8"
+    ]
+
+let parseDegreeSpec (str : string) =
+    if str.StartsWith "-degree:" then
+        let d = getPosIntVal str[8..] in
+        (d, d)
+    elif str.StartsWith "-degree1:" then
+        (getPosIntVal str[9..], None)
+    elif str.StartsWith "-degree2:" then
+        (None, getPosIntVal str[9..])
+    else (None, None)
+
+let testParseDegreeSpec () =
+    testExamples parseDegreeSpec [
+        "-d"
+        "-degree"
+        "-degree:"
+        "-degree:6"
+        "-degree1:9"
+    ]
+
 let rec private argAnalysis args acc =
     let loop = argAnalysis in
     match args with
@@ -159,6 +319,28 @@ let rec private argAnalysis args acc =
             acc with
                 toTruncate = Some false
         }
+    | mSpec :: args when Option.isSome $ parseMSpec mSpec ->
+        match Option.get $ parseMSpec mSpec with
+        | (Some var, mVal) ->
+            loop args {
+                acc with varDivisionM = Map.add var mVal acc.varDivisionM 
+            }
+        | (None, mVal) ->
+            loop args {
+                acc with globalDivisionM = mVal 
+            }
+    | vRange :: args when Option.isSome $ parseVarRange vRange ->
+        let (var, range) = Option.get $ parseVarRange vRange in
+        loop args {
+            acc with specifiedRanges = Map.add var range acc.specifiedRanges
+        }
+    | degree :: args when parseDegreeSpec degree <> (None, None) ->
+        let (d1, d2) = parseDegreeSpec degree in
+        loop args {
+            acc with
+                degree1 = Option.defaultValue acc.degree1 d1
+                degree2 = Option.defaultValue acc.degree2 d2 
+        }
     | fileName :: args ->
         checkValidPath fileName;
         loop args {
@@ -173,4 +355,4 @@ let rec private argAnalysis args acc =
 let runArgAnalysis args =
     let argResult = argAnalysis args $ defaultArgResult () in
     let anaCtx = argResultsToAnalysisContext argResult in
-    runPrintingOut anaCtx argResult.outFilePath
+    runPrintingOut (anaCtx, Some argResult) argResult.outFilePath

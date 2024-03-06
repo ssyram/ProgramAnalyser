@@ -260,7 +260,7 @@ let private testExec input =
     // perform execution
     let timing = System.Diagnostics.Stopwatch () in
     timing.Start ();
-    let ret = runParseAnalysis input in
+    let ret = fst $ runParseAnalysis input None in
     let time = timing.Elapsed in
     time, ret
 
@@ -390,3 +390,17 @@ let test_run_all () =
         test_random_box_walk
         test_random_walk_inside
     ]
+
+let testStringSlice () =
+    let str = "12345" in
+    printfn $"Str: {str[5..7]}"
+
+let exampleConfig () =
+    [
+        [
+            "h-t-r-2-3"
+        ]
+    ]
+
+let test_table_1 () =
+    undefined ()

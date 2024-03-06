@@ -1,0 +1,32 @@
+growing-walk-loop@non_weight_recursive
+p_t p_x
+1
+r_1@CU@0 1
+non-truncation@direct
+endscoring
+1@-1
+non-polynomial
+normal@3 1@p_t@acc=1e-4@min=0 max=0.2
+p_t
+locations@2
+loc=1
+probs=0.5 0.5
+1
+assignment#p_t:=p_t
+2
+assignment#p_t:=p_t+p_x*r_1
+assignment#p_x:=p_x+1
+2
+sting
+p_x-1>=0 and p_t>=0 and 0.2-p_t>=0
+next_locs=-1#1
+normal
+abnormal
+1
+r_1@expectation@0 (0.2-p_t)/p_x
+sting
+p_x-1>=0 and p_t-0.2>=0
+next_locs=0#0
+normal
+normal
+out

@@ -1,4 +1,4 @@
-h-t-r-2-3-inside-score@score_recursive
+h-t-r-2-3@non_score_recursive
 p_h p_t
 1
 r_1@CU@2 3
@@ -10,17 +10,18 @@ p_t:=p_t+1
 p_h>=0 and p_t>=0 and p_t-p_h>=0
 sting
 p_t-p_h>=0
-non-endscoring
+endscoring
+1@-1
+polynomial
+p_h
 locations@2
 loc=1
 probs=0.5 0.5
-3
+2
 assignment#p_h:=p_h+r_1
 assignment#p_t:=p_t+1
-score#constant@1.01
-2
+1
 assignment#p_t:=p_t+1
-score#constant@1.01
 3
 sting
 p_h>=0 and p_t>=0 and p_t-2-p_h>=0
@@ -47,4 +48,3 @@ abnormal
 r_1@expectation@1-(p_h-p_t) 3
 normal
 out
-Generation Time: 00:00:02.3365626

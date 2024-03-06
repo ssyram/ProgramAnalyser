@@ -2,12 +2,12 @@ h-t-r-2-3-inside-score@score_recursive
 p_h p_t
 1
 r_1@CU@2 3
-truncation@termination
+truncation@concentration
 2
 p_h:=p_h+r_1@p_t:=p_t+1
-p_h>=0 and p_t>=0 and p_t-p_h>=0 @r_1
+p_h>=0 and p_t-p_h>=0 @r_1
 p_t:=p_t+1
-p_h>=0 and p_t>=0 and p_t-p_h>=0
+p_h>=0 and p_t-p_h>=0
 sting
 p_t-p_h>=0
 non-endscoring
@@ -23,21 +23,21 @@ assignment#p_t:=p_t+1
 score#constant@1.01
 3
 sting
-p_h>=0 and p_t>=0 and p_t-2-p_h>=0
+p_h>=0 and p_t-2-p_h>=0
 next_locs=1#1
 abnormal
 1
 r_1@expectation
 normal
 sting
-1+p_h-p_t>=0 and p_h>=0 and p_t>=0 and p_t-p_h>=0
+1+p_h-p_t>=0 and p_h>=0 and p_t-p_h>=0
 next_locs=-1#1
 abnormal
 1
 r_1@expectation
 normal
 sting
-2+p_h-p_t>=0 and p_h>=0 and p_t>=0 and p_t-1-p_h>=0
+2+p_h-p_t>=0 and p_h>=0 and p_t-1-p_h>=0
 next_locs=1 -1#1
 abnormal
 1
@@ -47,4 +47,3 @@ abnormal
 r_1@expectation@1-(p_h-p_t) 3
 normal
 out
-Generation Time: 00:00:02.3365626
