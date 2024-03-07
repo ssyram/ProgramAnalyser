@@ -4,7 +4,6 @@ open System
 open Global
 open Microsoft.FSharp.Reflection
 open ProgramAnalyser.Analysis
-open ProgramAnalyser.Global
 open ProgramAnalyser.Logic
 open ProgramAnalyser.Objects
 open ProgramAnalyser.ParserSupport
@@ -34,6 +33,21 @@ let getBothVars program randVars =
     collectUsedVarsFromProgram program
     |> Set.toList
     |> List.fold folder (Set.empty, Map.empty)
+
+let rec private hasDiv aExpr =
+    match aExpr with
+    | AConst _ | AVar _ -> false
+    | AOperation (OpDiv, _) -> true
+    | AOperation (_, lst) -> List.exists hasDiv lst
+    
+
+let rec private simpArithExprForPrint arithExpr =
+    if not $ hasDiv arithExpr then
+        normaliseArithExpr arithExpr
+    else
+        match arithExpr with
+        | AOperation (op, lst) -> AOperation (op, List.map simpArithExprForPrint lst)
+        | _ -> IMPOSSIBLE ()
 
 type ProgramAnalysisInput = {
     programName : string
@@ -562,9 +576,15 @@ module private Impl = begin
                 let declareRandVars (_, vars) =
                     let number_of_vars = toString $ List.length vars in
                     let printVarWithMaybeBounds (var, lower, upper) =
-                        let lower = normaliseArithExpr lower in
-                        let upper = normaliseArithExpr upper in
-                        $"{var}@expectation@{lower} {upper}" +
+                        let lower = simpArithExprForPrint lower in
+                        let upper = simpArithExprForPrint upper in
+                        let boundStr =
+                            match (lower, upper) with
+                            | (AConst lower, AConst upper) when
+                                Some (lower, upper) = Map.tryFind var randVarRanges -> ""
+                            | _ -> $"@{lower} {upper}"
+                        in
+                        $"{var}@expectation" + boundStr +
                         if isDependent then
                             Set.union (collectVars lower) (collectVars upper)
                             |> Set.toList
