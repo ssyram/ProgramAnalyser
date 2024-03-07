@@ -6,7 +6,7 @@ program="dotnet ../../../ProgramAnalyser/bin/Debug/net8.0/ProgramAnalyser.dll -O
 
 $program h-t-r-2-3.program -termination -m:40
 $program h-t-r-2-3-inside-score.program -concentration -m:40
-$program pedestrian-beta.program -direct
+$program pedestrian-beta.program -direct -solver:SDP
 $program pedestrian-multiple-branches-v3.program -termination -degree:4
 $program pedestrian-multiple-branches-v4.program -termination -degree:4
 $program phylogenetic-model.program -no_truncate -termination -m:40 -Rp_lambda:0~2 -Rp_time:0~10

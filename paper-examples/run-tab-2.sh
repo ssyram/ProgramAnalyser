@@ -11,4 +11,4 @@ $program pedestrian-beta-inside-v3.program -direct -acc 1e-4
 $program pedestrian-beta-inside-v4.program -direct -acc 1e-4
 $program pedestrian-deviation5.program -direct -acc 1e-4
 $program pedestrian-multiple-branches-v5.program -direct -acc 1e-4
-$program pedestrian.program -direct -acc 1e-4 -m:90 -degree:10
+$program pedestrian.program -direct -acc 1e-4 -m:90 -degree:10 -solver:SDP

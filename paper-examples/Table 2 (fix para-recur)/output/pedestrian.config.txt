@@ -7,3 +7,4 @@ no_common_invs
 initial_inputs
 p_pos@random@0 3@90
 p_dis@constant@0
+solver@SDP

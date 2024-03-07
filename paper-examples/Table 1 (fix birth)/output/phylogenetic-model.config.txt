@@ -7,3 +7,4 @@ no_common_invs
 initial_inputs
 p_lambda@random@0 2@40
 p_time@constant@10
+solver@LP

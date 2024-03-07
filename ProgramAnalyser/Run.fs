@@ -82,7 +82,8 @@ let inline runParseAnalysis main maybeArgs =
                 cfgDegTwo = uint args.degree2
                 cfgDefDivM = uint args.globalDivisionM
                 cfgVarDivM = varDivM
-                cfgVarRanges = varRanges 
+                cfgVarRanges = varRanges
+                cfgSolver = args.solver 
             }
         in
         let cfg = genConfigOutput cfgInput in
@@ -312,6 +313,10 @@ let rec private argAnalysis args acc =
         loop args {
             acc with
                 endLoopScoreAccuracy = Some accVal
+        }
+    | solver :: args when Option.isSome $ parseSolver solver ->
+        loop args {
+            acc with solver = Option.get $ parseSolver solver 
         }
     | terType :: args when isTerType terType ->
         loop args {

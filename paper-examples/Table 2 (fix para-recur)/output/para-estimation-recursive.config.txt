@@ -7,3 +7,4 @@ no_common_invs
 initial_inputs
 p_p@random@0 1@60
 p_t@constant@0
+solver@LP
