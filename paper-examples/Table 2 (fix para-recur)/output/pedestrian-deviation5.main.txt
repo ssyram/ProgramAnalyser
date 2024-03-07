@@ -13,7 +13,7 @@ p_pos>=0
 endscoring
 1@-1
 non-polynomial
-normal@11/10 5@p_dis@acc=1e-4
+normal@1.1 5@p_dis@acc=1e-4
 p_dis+r_2@r_2@dependent
 locations@2
 loc=1

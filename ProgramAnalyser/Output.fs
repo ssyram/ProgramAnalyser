@@ -434,6 +434,7 @@ module private Impl = begin
                             if Option.isNone endLoopScoreAccuracy then
                                 failwith "When scoring `normal` distribution, accuracy should be given.";
                             let ret =
+                                let x, y = x.ToString "float", y.ToString "float" in
                                 $"normal@{x} {y}@{arithExpr}" + "@acc=" + endLoopScoreAccuracy.Value
                             in
                             match program.mayIfScoreCond, endLoopScoreVariable with
