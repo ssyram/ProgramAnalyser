@@ -289,7 +289,9 @@ module private Impl = begin
         let termination_type = toString terminationType
         
         let loop_guard_and_additional_guard =
-            And [ loopGuard; loopInvariant ]
+            // confirmed by Peixin, not to add LoopInvariant here.
+            // And [ loopGuard; loopInvariant ]
+            loopGuard
             |> propToSingleConjCmpList
             |> conjCmpsToGeConj LossConfirm
             |> simplifyGeConj

@@ -988,6 +988,7 @@ type private PathDivisionImpl(input) =
     let initNegTenLocGuards = lazy simplifyCmpProp true (qeForallTarget negTenLocCondition.Value)
     
     /// location guard is the guard that EXCLUSIVELY leads to this location
+    /// REGARDLESS OF the values of the random variables (in the given ranges)
     let findInitLocGuard loc =
         match loc with
         | LOne -> initOneLocGuards.Value
@@ -1345,6 +1346,32 @@ type private PathDivisionImpl(input) =
         let prop = totalCond + bp in
         if checkConjCmpListSAT prop then Some $ NLJoin (prop, info) else None
     
+    let allMentionedRandVars =
+        List.map (snd >> collectVars) path
+        // all vars
+        |> Set.unionMany
+        // only the random vars
+        |> Set.intersect randVars
+        |> Set.toList
+    
+    let attachIrrelevantVars nlInfo =
+        let addIfNotIn relVars ret rv =
+            if Set.contains rv relVars then ret
+            else
+                match Map.tryFind rv randVarRanges with
+                | Some (lower, upper) -> (rv, AConst lower, AConst upper) :: ret
+                | None -> failwith $"Random Variable \"{rv}\" has no range."
+        in
+        let addIrrVars varRanges =
+            // set of all relevant random vars
+            let relVars = Set.ofList $ List.map (fun (x,_,_) -> x) varRanges in
+            List.fold (addIfNotIn relVars) varRanges allMentionedRandVars
+        in
+        let addIrrVars (loc, vars) = (loc, addIrrVars vars) in
+        match nlInfo with
+        | NLJoin (totalGuard, lst) -> NLJoin (totalGuard, List.map addIrrVars lst)
+        | NLSingle _ -> IMPOSSIBLE ()
+    
     /// check whether Join should be generated, if so, pass the job to `PureGenJoin`
     member private x.GenJoin locTypes =
         // should find the NON-LOSS guards and make Not
@@ -1364,6 +1391,7 @@ type private PathDivisionImpl(input) =
             |> listMayCartesian
             |> List.map (List.choose id)
             |> List.choose (chooseCompatibleJoinInfo bp)
+            |> List.map attachIrrelevantVars
         in
         List.collect mayGenSomeJoins basicProps
     

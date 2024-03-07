@@ -15,5 +15,5 @@ while p_pos>=0 do
   p_dis:=p_dis+1
 od;
 score(p_dis);
-return p_start
+return p_pos
 end
