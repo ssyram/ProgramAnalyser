@@ -1,5 +1,5 @@
 pedestrian-multiple-branches-v4@non_score_recursive
-p_dis p_pos p_start
+p_dis p_pos
 5
 r_1@CU@-0.6 0.5
 r_2@CU@-0.5 0.4

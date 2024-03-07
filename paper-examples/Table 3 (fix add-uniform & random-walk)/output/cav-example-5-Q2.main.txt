@@ -78,16 +78,16 @@ abnormal
 r_1@expectation
 abnormal
 1
-r_1@expectation@5 (-10)-(-p_money)
+r_1@expectation@5 p_money-10
 abnormal
 1
-r_1@expectation@(-10)-(-p_money) 10
+r_1@expectation@p_money-10 10
 abnormal
 1
-r_1@expectation@5 (-10)-(-p_money)
+r_1@expectation@5 p_money-10
 abnormal
 1
-r_1@expectation@(-10)-(-p_money) 10
+r_1@expectation@p_money-10 10
 sting
 19-p_i>=0 and 13.5-p_money>=0 and p_i>=0 and p_money-10>=0
 next_locs=1#1#1#1#-10#-10#-10
@@ -129,10 +129,10 @@ abnormal
 r_1@expectation
 abnormal
 1
-r_1@expectation@5 (-14.285714285714285)-(-(1.4285714285714286*p_money))
+r_1@expectation@5 1.4285714285714286*p_money-14.285714285714285
 abnormal
 1
-r_1@expectation@(-14.285714285714285)-(-(1.4285714285714286*p_money)) 10
+r_1@expectation@1.4285714285714286*p_money-14.285714285714285 10
 abnormal
 1
 r_1@expectation
@@ -156,22 +156,22 @@ abnormal
 r_1@expectation
 abnormal
 1
-r_1@expectation@5 (-14.285714285714285)-(-(1.4285714285714286*p_money))
+r_1@expectation@5 1.4285714285714286*p_money-14.285714285714285
 abnormal
 1
-r_1@expectation@(-14.285714285714285)-(-(1.4285714285714286*p_money)) 10
+r_1@expectation@1.4285714285714286*p_money-14.285714285714285 10
 abnormal
 1
-r_1@expectation@5 (-10)-(-p_money)
+r_1@expectation@5 p_money-10
 abnormal
 1
-r_1@expectation@(-10)-(-p_money) 10
+r_1@expectation@p_money-10 10
 abnormal
 1
-r_1@expectation@5 (-10)-(-p_money)
+r_1@expectation@5 p_money-10
 abnormal
 1
-r_1@expectation@(-10)-(-p_money) 10
+r_1@expectation@p_money-10 10
 sting
 p_i-19>=0 and p_money-10>=0
 next_locs=0#0#0#0#0#0#0
