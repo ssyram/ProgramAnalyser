@@ -97,7 +97,7 @@ sting
 next_locs=1 -1#1
 abnormal
 1
-r_4@expectation@0 p_pos@p_pos
+r_4@expectation@0 p_pos
 abnormal
 1
 r_4@expectation@p_pos 0.5@p_pos

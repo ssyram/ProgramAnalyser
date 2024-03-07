@@ -558,7 +558,7 @@ module private Impl = begin
                 ]
                 |> fromListGenOutput
             | SIAbnormalMultiLocs lst ->
-                let declareRandVars (_, vars) =
+                let declareRandVars (loc, vars) =
                     let number_of_vars = toString $ List.length vars in
                     let printVarWithMaybeBounds (var, lower, upper) =
                         let lower = simpArithExprForPrint lower in
@@ -570,7 +570,7 @@ module private Impl = begin
                             | _ -> $"@{lower} {upper}"
                         in
                         $"{var}@expectation" + boundStr +
-                        if isDependent then
+                        if isDependent && loc = LNegOne then
                             Set.union (collectVars lower) (collectVars upper)
                             |> Set.toList
                             |> List.map toString
