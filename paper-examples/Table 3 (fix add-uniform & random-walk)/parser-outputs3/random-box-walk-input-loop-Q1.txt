@@ -2,12 +2,12 @@ random-box-walk-loop@non_weight_recursive
 p_x p_t
 2
 r_1@CU@0 0.5
-r_1@CU@0.5 1
+r_2@CU@0.5 1
 non-truncation@direct
 no-endscoring
 locations@2
 loc=1
-probs=1 1
+probs=0.5 0.5
 2
 assignment#p_x:=p_x-r_1
 assignment#p_t:=p_t+r_1

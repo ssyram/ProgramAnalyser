@@ -1,0 +1,9 @@
+6
+6
+bounded_domain
+p_x@0 5
+p_y@0 5
+no_common_invs
+initial_inputs
+p_x@random@0 3@60
+p_y@constant@0

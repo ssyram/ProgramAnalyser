@@ -1,0 +1,72 @@
+add-uniform-unbounded-Q2@non_score_recursive
+p_x p_y
+2
+r_1@CU@0 0.5
+r_2@CU@0.5 1
+non-truncation@direct
+non-endscoring
+locations@2
+loc=1
+probs=0.5 0.5
+2
+assignment#p_y:=p_y+1
+assignment#p_x:=p_x+r_1
+1
+assignment#p_x:=p_x+r_2
+7
+sting
+14-p_x>=0 and -p_y>=0 and p_x>=0 and p_y>=0
+next_locs=1#1
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+sting
+14.5-p_x>=0 and -p_y>=0 and p_x-14>=0 and p_y>=0
+next_locs=1#1
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation@0.5 15-p_x
+sting
+1-p_y>=0 and p_x-15>=0 and p_y>=0
+next_locs=0#0
+normal
+normal
+sting
+14-p_x>=0 and 1-p_y>=0 and p_x>=0 and p_y>=0
+next_locs=-10#1
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+sting
+14.5-p_x>=0 and 1-p_y>=0 and p_x-14>=0 and p_y>=0
+next_locs=-10#1
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation@0.5 15-p_x
+sting
+15-p_x>=0 and 1-p_y>=0 and p_x-14.5>=0 and p_y>=0
+next_locs=-10#0
+abnormal
+1
+r_1@expectation@0 15-p_x
+normal
+sting
+15-p_x>=0 and -p_y>=0 and p_x-14.5>=0 and p_y>=0
+next_locs=1#0
+abnormal
+1
+r_1@expectation@0 15-p_x
+normal
+out

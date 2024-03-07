@@ -1,0 +1,9 @@
+8
+8
+bounded_domain
+p_t@0 0.1
+p_x@1 10
+no_common_invs
+initial_inputs
+p_x@constant@1
+p_t@constant@0

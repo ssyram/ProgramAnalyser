@@ -1168,6 +1168,7 @@ let genConfigOutput input =
     [
         toString input.cfgDegOne
         toString input.cfgDegTwo
+        "bounded_domain"
         declVarRanges progVars input
         "no_common_invs"
         "initial_inputs"

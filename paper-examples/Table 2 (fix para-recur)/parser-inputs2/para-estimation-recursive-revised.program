@@ -1,0 +1,21 @@
+p_p:=r_0;
+p_t:=0;
+p_m:=1;
+
+[p_p>=0]
+while p_m>=1 do
+   if prob(0.5) then
+      p_m:=0
+   else
+     if prob(p_p) then
+        p_t:=p_t+r_1
+     else
+        p_t:=p_t-r_1
+     fi
+   fi
+od;
+score(normal(1.0, 1), p_t);
+return p_p
+end
+
+

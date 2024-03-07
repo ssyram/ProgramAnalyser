@@ -1,0 +1,22 @@
+p_x:=1;
+p_t:=0;
+p_m:=1;
+
+[p_y>=0 and 1-p_y>=0 and p_x>=1 and p_t>=0]
+while p_m>=1 do
+   if prob(0.5) then
+      p_m:=0
+   else
+      p_t:=p_t+p_x*r_1;
+      p_x:=p_x+1
+   fi
+od;
+score(normal(3.0, 1), p_t);
+if p_t <= 0.2 then
+   score(1)
+else
+   score(0)
+fi
+end
+
+

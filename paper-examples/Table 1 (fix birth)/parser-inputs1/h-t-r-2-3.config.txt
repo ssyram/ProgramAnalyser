@@ -1,0 +1,8 @@
+6
+6
+p_h@0 5
+p_t@0 5
+no_common_invs
+initial_inputs
+p_h@constant@0
+p_t@random@0 2@60

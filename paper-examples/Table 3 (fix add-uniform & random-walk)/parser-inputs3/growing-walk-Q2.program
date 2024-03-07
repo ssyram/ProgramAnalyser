@@ -15,7 +15,8 @@ if p_t <= 0.2 then
    score(1)
 else
    score(0)
-fi
+fi;
+return p_t
 end
 
 

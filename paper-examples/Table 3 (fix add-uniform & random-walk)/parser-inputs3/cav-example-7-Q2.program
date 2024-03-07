@@ -14,7 +14,8 @@ if p_count<=40 then
    score(1)
 else
    score(0)
-fi
+fi;
+return p_count
 end
 
 

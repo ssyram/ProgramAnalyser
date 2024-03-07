@@ -1,0 +1,27 @@
+﻿h-t-r-2-3,1,concentration,-,40,-,-
+h-t-r-2-3-inside-score,1,concentration,-,40,-,-
+pedestrian-beta,1,direct,-,-,-,-
+pedestrian-multiple-branches-v3,1,termination,-,-,-,4
+pedestrian-multiple-branches-v4,1,termination,-,-,-,4
+phylogenetic-model,0,termination,-,40,p_lambda: 0~2 & p_time:0~10,-
+random-walk-beta-inside-scorey-v1,1,termination,-,-,-,-
+random-walk-beta-inside-scorey-v2,1,termination,-,-,-,-
+random-walk-beta-inside-scorey-v3,1,termination,-,-,-,-
+random-walk-beta-inside-scorey-v4,1,termination,-,-,-,-
+para-estimation-recursive,0,direct,1.00E-05,-,p_p:0~1 & p_t:0~10,8
+pedestrian-beta-inside-v1,1,direct,1.00E-04,-,-,-
+pedestrian-beta-inside-v2,1,direct,1.00E-04,-,-,-
+pedestrian-beta-inside-v3,1,direct,1.00E-04,-,-,-
+pedestrian-beta-inside-v4,1,direct,1.00E-04,-,-,-
+pedestrian-deviation5,1,direct,1.00E-04,-,-,-
+pedestrian-multiple-branches-v5,1,direct,1.00E-04,-,-,-
+pedestrian,1,direct,1.00E-04,90,-,10
+add-uniform-unbounded-Q1,0,direct,-,-,p_x:0~1 & p_y:0~1,-
+add-uniform-unbounded-Q2,0,direct,-,-,p_x:0~1 & p_y:0~1,-
+cav-example-5-Q1,0,direct,-,10,p_m:10~20 & p_i:0~20,-
+cav-example-5-Q2,0,direct,-,10,p_m:10~20 & p_i:0~20,-
+cav-example-7-Q1,0,direct,-,-,p_c:0~30 & p_i:0~4,-
+cav-example-7-Q2,0,direct,-,-,p_c:0~30 & p_i:0~4,-
+growing-walk-Q1,0,direct,1.00E-04,-,p_t:0~0.1 & p_x:1~10,8
+growing-walk-Q2,0,direct,1.00E-04,-,p_t:0~0.1 & p_x:1~10,8
+random-box-walk-Q1,0,direct,-,-,p_x:-0.8~0.8 & p_t:0~10,4

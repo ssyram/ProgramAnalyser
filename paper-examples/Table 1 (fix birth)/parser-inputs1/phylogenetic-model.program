@@ -1,15 +1,17 @@
 p_lambda:=r_0;
 p_time:=10;
-amount:=0;
+p_amount:=0;
 
 [p_lambda>=0 and 2-p_lambda>=0 and 10-p_time>=0]
 while p_time >= 0 do
    p_time:=p_time-r_1;
    if prob(0.5*p_lambda) then
-      amount:=amount+r_2;
+      p_amount:=p_amount+r_2;
       score(1.1)
+   else
+      skip
    fi
-od
+od;
 return p_lambda
 end
 

@@ -1,0 +1,40 @@
+phylogenetic-model@score_recursive
+p_lambda p_time
+1
+r_1@CU@0 0.5
+non-truncation@termination
+non-endscoring
+locations@2
+loc=1
+probs=0.5*p_lambda 1-0.5*p_lambda
+2
+assignment#p_time:=p_time-r_1
+score#constant@1.1
+1
+assignment#p_time:=p_time-r_1
+2
+sting
+2-p_lambda>=0 and 10-p_time>=0 and p_lambda>=0 and p_time-0.5>=0
+next_locs=1#1
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_1@expectation
+sting
+2-p_lambda>=0 and 0.5-p_time>=0 and p_lambda>=0 and p_time>=0
+next_locs=1 -1#1 -1
+abnormal
+1
+r_1@expectation@0 0-(-p_time)
+abnormal
+1
+r_1@expectation@0-(-p_time) 0.5
+abnormal
+1
+r_1@expectation@0 0-(-p_time)
+abnormal
+1
+r_1@expectation@0-(-p_time) 0.5
+out

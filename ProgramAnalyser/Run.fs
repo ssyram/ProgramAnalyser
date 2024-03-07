@@ -102,7 +102,7 @@ let inline runPrintingOut (mainInput, args) (outPath : string option) =
     timing.Start ();
     let main, cfg = runParseAnalysis mainInput args in
     File.WriteAllText (outMainPath, main);
-    // File.WriteAllText (outConfigPath, )
+    File.WriteAllText (outConfigPath, Option.get cfg);
     let time = timing.Elapsed in
     debugPrint $"Time generating {Path.GetFileName pPath}: {time}"
 
@@ -289,11 +289,11 @@ let rec private argAnalysis args acc =
     let loop = argAnalysis in
     match args with
     | [] -> acc
-    | "-O" :: outFileName :: args ->
-        checkValidPath outFileName;
+    | "-O" :: outDir :: args ->
+        checkValidPath outDir;
         loop args {
             acc with
-                outFilePath = Some $ checkHasExtension outFileName "txt"
+                outFilePath = Some outDir
         }
     | ("-accuracy" | "-acc") :: accVal :: args ->
         try Numeric.Parse accVal |> ignore

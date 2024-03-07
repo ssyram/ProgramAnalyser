@@ -16,7 +16,7 @@ while p_money >= 10 do
             if prob(0.33333) then
                p_money:=p_money+1.5*r_1
             else
-               p_money:=p_monet+1.1*r_1
+               p_money:=p_money+1.1*r_1
             fi
          else
             if prob(0.66667) then
@@ -35,7 +35,8 @@ if p_i<=20 then
    score(1)
 else
    score(0)
-fi
+fi;
+return p_i
 end
 
 
