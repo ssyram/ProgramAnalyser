@@ -48,6 +48,12 @@ where the `<run-time>` could be:
 
 - **`-no-truncation`** or **`-non-truncate`** : Run the analysis without truncation.
 
+- **`-R<name>:<min>~<max>`**: Specify the range of a given variable in the program (no space).
+
+- **`-m:<number>`**: Specify the division number `m` as in the paper (no space).
+
+- **`-degree:<number>`**: Specify the degree number `d` as in the paper (no space).
+
 ## Default Example Configurations
 
 ```
