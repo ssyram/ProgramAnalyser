@@ -4,7 +4,7 @@ cd "Table 1 (fix birth)/parser-inputs1/"
 
 program="dotnet ../../../ProgramAnalyser/bin/Debug/net8.0/ProgramAnalyser.dll -O ../output"
 
-$program h-t-r-2-3.program -concentration -m:40
+$program h-t-r-2-3.program -termination -m:40
 $program h-t-r-2-3-inside-score.program -concentration -m:40
 $program pedestrian-beta.program -direct
 $program pedestrian-multiple-branches-v3.program -termination -degree:4

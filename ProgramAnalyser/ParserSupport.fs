@@ -131,7 +131,7 @@ let collectUsedVarsFromProgram (program : Program) =
     Set.unionMany [
 //        Set.unionMany $ List.map collectStatementUsedVars program.assnLst
         Set.unionMany $ List.map collectVars [ program.preLoopGuard; program.loopGuard ]
-        Set.add program.retVar Set.empty
+        // Set.add program.retVar Set.empty
         Set.unionMany $ List.map collectStatementUsedVars program.loopBody
         Set.unionMany $ List.map collectEndScoreLoopVars (Option.toList program.mayEndScore)
         Set.unionMany $ List.map collectVars (Option.toList program.mayIfScoreCond)

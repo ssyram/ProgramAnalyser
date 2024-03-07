@@ -9,7 +9,7 @@ p_x>=0 and p_y>=0 @r_2
 p_y:=p_y+1
 p_x>=0 and p_y>=0
 sting
-p_x>=0
+p_x>=0 and p_y>=0
 endscoring
 1@-1
 polynomial
@@ -35,9 +35,9 @@ sting
 next_locs=1 -1#1
 abnormal
 1
-r_2@expectation@0 0-(-p_x)
+r_2@expectation@0 p_x
 abnormal
 1
-r_2@expectation@0-(-p_x) 1
+r_2@expectation@p_x 1
 normal
 out

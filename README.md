@@ -36,7 +36,7 @@ where the `<run-time>` could be:
 
 - **`-O <output-path>`** : Specify the output path. Otherwise it will be the same as the `<program-path>` with extension changing to ".txt".
 
-- **`-accuracy <accuracy-number>`** or **`-acc <accuracy-number>`** : Set the desired accuracy level for end-loop scores with a numeric value.
+- **`-accuracy <accuracy-number>`** or **`-acc <accuracy-number>`** : Set the desired accuracy level for end-loop scores with a numeric value (with space).
 
 - **`-termination`** : Use the 'termination' termination type. This is the default.
 

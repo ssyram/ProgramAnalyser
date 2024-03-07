@@ -275,7 +275,8 @@ module private Impl = begin
         let termination_type = toString terminationType
         
         let loop_guard_and_additional_guard =
-            propToSingleConjCmpList loopGuard
+            And [ loopGuard; loopInvariant ]
+            |> propToSingleConjCmpList
             |> conjCmpsToGeConj LossConfirm
             |> simplifyGeConj
             |> toString
@@ -561,6 +562,8 @@ module private Impl = begin
                 let declareRandVars (_, vars) =
                     let number_of_vars = toString $ List.length vars in
                     let printVarWithMaybeBounds (var, lower, upper) =
+                        let lower = normaliseArithExpr lower in
+                        let upper = normaliseArithExpr upper in
                         $"{var}@expectation@{lower} {upper}" +
                         if isDependent then
                             Set.union (collectVars lower) (collectVars upper)

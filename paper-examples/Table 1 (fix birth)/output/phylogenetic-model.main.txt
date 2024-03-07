@@ -27,14 +27,14 @@ sting
 next_locs=1 -1#1 -1
 abnormal
 1
-r_1@expectation@0 0-(-p_time)
+r_1@expectation@0 p_time
 abnormal
 1
-r_1@expectation@0-(-p_time) 0.5
+r_1@expectation@p_time 0.5
 abnormal
 1
-r_1@expectation@0 0-(-p_time)
+r_1@expectation@0 p_time
 abnormal
 1
-r_1@expectation@0-(-p_time) 0.5
+r_1@expectation@p_time 0.5
 out
