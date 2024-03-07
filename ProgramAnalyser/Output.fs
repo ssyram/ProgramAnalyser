@@ -92,20 +92,21 @@ module private Impl = begin
     type TruncationPathInfo =
         TruncationPathInfo of
             updates:(Variable * ArithExpr) list *
-            cond:GeConj *
+            // cond:GeConj *
             randVars:Variable list
         with
-        override x.ToString () =
+        member x.PrintWithGuard guard =
             match x with
-            | TruncationPathInfo (updates, cond, randVars) ->
+            | TruncationPathInfo (updates, randVars) ->
                 let mapper (var, expr) = $"{var}:={expr}" in
                 [
                     String.concat "@" $ List.map mapper updates
                     match randVars with
-                    | []  -> toString cond
-                    | lst -> toString cond + " " @ String.concat " " (List.map toString lst)
+                    | []  -> toString guard
+                    | lst -> toString guard + " " @ String.concat " " (List.map toString lst)
                 ]
                 |> String.concat "\n"
+        override x.ToString () = x.PrintWithGuard "GUARD"
                 
     type AssignmentPath =
         /// if there is a `break` at last, the update is before the `break` statement
@@ -288,7 +289,7 @@ module private Impl = begin
         
         let termination_type = toString terminationType
         
-        let loop_guard_and_additional_guard =
+        let truncation_sting_guard =
             // confirmed by Peixin, not to add LoopInvariant here.
             // And [ loopGuard; loopInvariant ]
             loopGuard
@@ -297,20 +298,31 @@ module private Impl = begin
             |> simplifyGeConj
             |> toString
         
-        /// Collects all updates pairs in a given conditional path of the form [(var, expr)]
-        let rec collectCondUpdates (ConditionalPath (_, ess, nextParts)) =
-            List.map collectProbUpdates nextParts
-            |> List.concat
-            |> List.append (collectUpdates ess)
-        /// Collects all updates pairs in a given probability path of the form [(var, expr)]
-        and collectProbUpdates (ProbPath (_, ess, nextParts)) =
-            if nextParts <> [] then failwith "Invalid path pattern: if (bool) inside if prob ()."
-            collectUpdates ess
         /// Collects all updates pairs in a given list of statements
-        and collectUpdates lst =
+        let collectUpdates lst =
             flip List.choose lst $ function
                 | ESAssign (var, toUpdate) -> Some (var, toUpdate)
                 | ESScore _ | ESBreak      -> None
+        
+        let rec allBranchesCond (ConditionalPath (_, sts, next)) =
+            let sts = collectUpdates sts in
+            match next with
+            | [] -> [ sts ]
+            | _  ->
+                List.collect allBranchesProb next
+                |> List.map (List.append sts)
+        and allBranchesProb (ProbPath (_, sts, next)) =
+            let sts = collectUpdates sts in
+            match next with
+            | [] -> [ sts ]
+            | _  ->
+                List.collect allBranchesCond next
+                |> List.map (List.append sts)
+        
+        let allUpdateBranches pathList =
+            match pathList with
+            | PLCond lst -> List.collect allBranchesCond lst
+            | PLProb lst -> List.collect allBranchesProb lst
         
         /// number_of_paths
         /// {
@@ -321,23 +333,6 @@ module private Impl = begin
         /// condition is given by `LoopGuard & InvGuard & PathGuard`
         /// Hence for probability paths, just `LoopGuard & InvGuard` without PathGuard
         let truncation_paths_information () =
-            let genGuard guard =
-                let guardGeConj =
-                    match propToValidGeConj LossConfirm $ boolExprToProposition guard with
-                    | [ x ] -> x
-                    | guard ->
-                        let str =
-                            String.concat " "
-                                [
-                                    "Invalid Guard: cannot convert to the target guard"
-                                    "when generating truncation information, as it is not purely and"
-                                    $"guard: {guard}"
-                                ]
-                        in
-                        failwith str
-                in
-                simplifyGeConj $ concatGeConj loopAndInvGeConj guardGeConj
-            in
             let generatePathsInfo () =
                 let getInvolvedRandVarsFromUpdates updates =
                     List.map snd updates
@@ -346,34 +341,22 @@ module private Impl = begin
                     |> Set.intersect randomVarsSet
                 in
                 let truncInfo : TruncationPathInfo list =
-                    match analysisPaths with
-                    | PLCond conds ->
-                        let mapper (ConditionalPath (guard, _, _) as path) =
-                            let updates = collectCondUpdates path in
-                            let involvedRandVars = getInvolvedRandVarsFromUpdates updates in
-                            TruncationPathInfo (
-                                updates,
-                                genGuard guard,
-                                Set.toList involvedRandVars)
-                        in
-                        List.map mapper conds
-                    | PLProb probs ->
-                        let mapper probPath =
-                            let updates = collectProbUpdates probPath in
-                            TruncationPathInfo (
-                                updates,
-                                loopAndInvGeConj,
-                                Set.toList $ getInvolvedRandVarsFromUpdates updates)
-                        in
-                        List.map mapper probs
+                    let mapper updates =
+                        TruncationPathInfo (
+                            updates,
+                            Set.toList $ getInvolvedRandVarsFromUpdates updates)
+                    in
+                    allUpdateBranches analysisPaths
+                    |> List.map mapper
                 in
                 let number_of_paths = toString $ List.length truncInfo in
-                let truncate_paths_info () = fromListGenOutput $ List.map toString truncInfo in
+                let printTrunc (trunc : TruncationPathInfo) = trunc.PrintWithGuard loopAndInvGeConj in
+                let truncate_paths_info () = fromListGenOutput $ List.map printTrunc truncInfo in
                 [
                     number_of_paths
                     truncate_paths_info ()
                     sting
-                    loop_guard_and_additional_guard
+                    truncation_sting_guard
                 ]
                 |> fromListGenOutput
             in

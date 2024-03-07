@@ -1365,7 +1365,12 @@ type private PathDivisionImpl(input) =
         let addIrrVars varRanges =
             // set of all relevant random vars
             let relVars = Set.ofList $ List.map (fun (x,_,_) -> x) varRanges in
-            List.fold (addIfNotIn relVars) varRanges allMentionedRandVars
+            varRanges
+            // to maintain the order for comparison, non-essential, could be removed
+            |> List.rev
+            |> flip (List.fold (addIfNotIn relVars)) allMentionedRandVars
+            // to maintain the order for comparison, non-essential, could be removed
+            |> List.rev
         in
         let addIrrVars (loc, vars) = (loc, addIrrVars vars) in
         match nlInfo with

@@ -9,13 +9,13 @@ r_5@CU@0 1
 truncation@termination
 4
 p_pos:=p_pos+r_1@p_dis:=p_dis+r_5
-p_dis>=0 and p_pos-1.5>=0 @r_1 r_5
+p_dis>=0 and p_pos>=0 @r_1 r_5
 p_pos:=p_pos+r_2@p_dis:=p_dis+r_5
-1.5-p_pos>=0 and p_dis>=0 and p_pos-1>=0 @r_2 r_5
+p_dis>=0 and p_pos>=0 @r_2 r_5
 p_pos:=p_pos+r_3@p_dis:=p_dis+r_5
-1-p_pos>=0 and p_dis>=0 and p_pos-0.5>=0 @r_3 r_5
+p_dis>=0 and p_pos>=0 @r_3 r_5
 p_pos:=p_pos+r_4@p_dis:=p_dis+r_5
-0.5-p_pos>=0 and p_dis>=0 and p_pos>=0 @r_4 r_5
+p_dis>=0 and p_pos>=0 @r_4 r_5
 sting
 p_pos>=0
 endscoring
@@ -64,10 +64,10 @@ sting
 next_locs=1 -1
 abnormal
 2
-r_5@expectation
 r_4@expectation@-p_pos 0.5
+r_5@expectation
 abnormal
 2
-r_5@expectation
 r_4@expectation@(-0.6) -p_pos
+r_5@expectation
 out

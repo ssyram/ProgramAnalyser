@@ -35,6 +35,8 @@ type ArgAnalysisResult = {
     degree1 : int
     /// by default 6
     degree2 : int
+    /// by default "LP", another option is "SDP"
+    solver : string
 }
 
 let inline runGenOutput input =
@@ -127,6 +129,7 @@ let defaultArgResult () = {
     specifiedRanges = Map.empty
     degree1 = 6
     degree2 = 6
+    solver = "LP"
 }
 
 let argResultsToAnalysisContext argRes =
@@ -284,6 +287,12 @@ let testParseDegreeSpec () =
         "-degree:6"
         "-degree1:9"
     ]
+    
+let private parseSolver (str : string) =
+    match str.ToLower () with
+    | "-solver:lp" -> Some "LP"
+    | "-solver:sdp" -> Some "SDP"
+    | _ -> None
 
 let rec private argAnalysis args acc =
     let loop = argAnalysis in
