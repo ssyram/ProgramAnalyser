@@ -9,7 +9,7 @@ p_dis>=0 and p_pos>=0 @r_2
 p_pos:=p_pos+r_2@p_dis:=p_dis+r_2
 p_dis>=0 and p_pos>=0 @r_2
 sting
-p_dis>=0 and p_pos>=0
+p_pos>=0
 endscoring
 1@-1
 non-polynomial

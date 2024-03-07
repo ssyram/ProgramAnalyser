@@ -9,7 +9,7 @@ p_x>=0 and p_y>=0 @r_2
 p_y:=p_y+1
 p_x>=0 and p_y>=0
 sting
-p_x>=0 and p_y>=0
+p_x>=0
 endscoring
 1@-1
 polynomial

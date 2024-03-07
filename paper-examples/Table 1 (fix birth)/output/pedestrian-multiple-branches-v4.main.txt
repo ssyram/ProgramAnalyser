@@ -17,7 +17,7 @@ p_pos:=p_pos+r_3@p_dis:=p_dis+r_5
 p_pos:=p_pos+r_4@p_dis:=p_dis+r_5
 0.5-p_pos>=0 and p_dis>=0 and p_pos>=0 @r_4 r_5
 sting
-p_dis>=0 and p_pos>=0
+p_pos>=0
 endscoring
 1@-1
 polynomial
@@ -63,9 +63,11 @@ sting
 0.5-p_pos>=0 and p_dis>=0 and p_pos>=0
 next_locs=1 -1
 abnormal
-1
+2
+r_5@expectation
 r_4@expectation@-p_pos 0.5
 abnormal
-1
+2
+r_5@expectation
 r_4@expectation@(-0.6) -p_pos
 out

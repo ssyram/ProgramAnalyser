@@ -9,7 +9,7 @@ p_h>=0 and p_t>=0 and p_t-p_h>=0 @r_1
 p_t:=p_t+1
 p_h>=0 and p_t>=0 and p_t-p_h>=0
 sting
-p_h>=0 and p_t>=0 and p_t-p_h>=0
+p_t-p_h>=0
 endscoring
 1@-1
 polynomial
