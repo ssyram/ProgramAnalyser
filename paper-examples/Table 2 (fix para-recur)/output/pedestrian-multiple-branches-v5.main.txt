@@ -29,7 +29,7 @@ endscoring
 1@-1
 non-polynomial
 normal@1.1 5@p_dis@acc=1e-4
-p_dis+r_1@r_1@dependent
+p_dis+r_4@r_4@dependent
 locations@2
 loc=1
 4

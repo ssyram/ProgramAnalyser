@@ -132,20 +132,20 @@ and private fuseProbToPath prob (ProbPath (oriProb, ess, condPaths)) =
 and private fuseGuardToPath guard (ConditionalPath (oriGuard, ess, nextParts)) =
     ConditionalPath (BAnd (guard, oriGuard), ess, nextParts)
     
-type Edge = Edge of EdgeStatement list
+type Edge = Edge of BoolExpr * ArithExpr * EdgeStatement list
     
-let rec collectEdgeStmtFromCondPath (ConditionalPath (_, ess, nextParts)) =
+let rec collectEdgeStmtFromCondPath (ConditionalPath (guard, ess, nextParts)) =
     match nextParts with
-    | [] -> [ Edge ess ]
+    | [] -> [ Edge (guard, AConst NUMERIC_ONE, ess) ]
     | lst -> List.map collectEdgeStmtFromProbPath lst
              |> List.concat
-             |> List.map (fun (Edge lst) -> Edge $ ess ++ lst)
-and collectEdgeStmtFromProbPath (ProbPath (_, ess, nextParts)) : Edge list =
+             |> List.map (fun (Edge (guard', p, lst)) -> Edge (BAnd (guard, guard'), p, ess ++ lst))
+and collectEdgeStmtFromProbPath (ProbPath (p, ess, nextParts)) : Edge list =
     match nextParts with
-    | [] -> [ Edge ess ]
+    | [] -> [ Edge (BTrue, p, ess) ]
     | lst -> List.map collectEdgeStmtFromCondPath lst
              |> List.concat
-             |> List.map (fun (Edge lst) -> Edge $ ess ++ lst)
+             |> List.map (fun (Edge (guard, p', lst)) -> Edge (guard, AOperation (OpMul, [ p; p' ]), ess ++ lst))
     
     
 type PathList =

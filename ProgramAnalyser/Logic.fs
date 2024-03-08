@@ -357,8 +357,9 @@ let varDeclSString supp =
         |> Seq.map (fun x -> 
             match Map.tryFind x supp.varRange with
             | Some (lower, upper) ->
-                $"(<= {x} {lispPrint upper})" + "\n" +
-                $"(>= {x} {lispPrint lower})"
+                let lower, upper = lispPrint lower, lispPrint upper in
+                $"(assert (<= {x} {upper}))" + "\n" +
+                $"(assert (>= {x} {lower}))"
             | None -> "")
         |> String.concat "\n"
     in
@@ -391,7 +392,9 @@ let private preprocess (z3Ctx : Context) supp pSupp propositions =
             propositions
         |> String.concat "\n"
     in
-    let constraints = z3Ctx.ParseSMTLIB2String $ varDeclStr + propStr in
+    let inquiry = varDeclStr + propStr in
+    // debugPrint $"Z3 Inquiry: {inquiry}"
+    let constraints = z3Ctx.ParseSMTLIB2String inquiry in
     z3Ctx, supp, constraints
     
 

@@ -111,7 +111,7 @@ module private Impl = begin
     type AssignmentPath =
         /// if there is a `break` at last, the update is before the `break` statement
         /// if there is no `break` statement, the update is all the statements
-        AssignmentPath of updates:(Variable * ArithExpr) list * toBreak:bool
+        AssignmentPath of guard:BoolExpr * updates:(Variable * ArithExpr) list * toBreak:bool
 
     type StingItem =
         | SINormal of Location
@@ -370,7 +370,7 @@ module private Impl = begin
                 | PLCond condPaths -> List.map collectEdgeStmtFromCondPath condPaths
                 | PLProb probPaths -> List.map collectEdgeStmtFromProbPath probPaths
             in
-            let clearAfterBreak (Edge lst) =
+            let clearAfterBreak (Edge (guard, p, lst)) =
                 let folder (toAcc, foundBreak) es =
                     if foundBreak then (toAcc, true)
                     else match es with
@@ -381,11 +381,11 @@ module private Impl = begin
                 List.fold folder ([], false) lst
                 |> fst
                 |> List.rev  // reverse the folding result
-                |> Edge
+                |> fun lst -> Edge (guard, p, lst)
             in
             List.map clearAfterBreak initialEdges
             
-        let edgeToAssnPath (Edge lst) =
+        let edgeToAssnPath (Edge (guard, _, lst)) =
             let folder (assnLst, toBreak as pair) es =
                 if toBreak then pair
                 else match es with
@@ -395,7 +395,7 @@ module private Impl = begin
             in
             List.fold folder ([], false) lst
             |> BiMap.fstMap List.rev
-            |> AssignmentPath
+            |> fun (lst, toBreak) -> AssignmentPath (guard, lst, toBreak)
             
         let enumeratedAssnPaths =
             List.map edgeToAssnPath enumeratedEdges
@@ -479,7 +479,7 @@ module private Impl = begin
                         let targetVar = endLoopScoreVariable.Value in
                         // the update formula of the exit variable
                         let targetFormula =
-                            let toPick (idx, AssignmentPath (lst, toBreak)) =
+                            let toPick (idx, AssignmentPath (pathGuard, lst, toBreak)) =
                                 let tryFindExpr lst =
                                     // during the find, should also log the out-way path index
                                     outPathIdx <- idx;
@@ -493,9 +493,19 @@ module private Impl = begin
                                 // check SAT of g_l /\ wp(~g_l)
                                 /// wp(~g_l)
                                 let execLoopGuard = assnPathWp lst $ Not loopGuard in
+                                let queryCtx = mkQueryCtx () in
+                                let randVarRanges =
+                                    Map.map (fun _ (a, b) -> (AConst a, AConst b)) randVarRanges
+                                in
+                                let queryCtx = { queryCtx with varRange = randVarRanges } in
                                 // find out the one that is going to exit --
-                                // based on the assumption, there is ONLY ONE way out and must out
-                                if checkSAT (mkQueryCtx ()) [ loopGuard; execLoopGuard ] then
+                                // based on the assumption, there is ONLY ONE way out
+                                if checkSAT queryCtx [
+                                    loopGuard
+                                    loopInvariant
+                                    execLoopGuard
+                                    boolExprToProposition pathGuard
+                                ] then
                                     Some $ tryFindExpr lst
                                 else None
                             in
@@ -670,7 +680,7 @@ module private Impl = begin
             let centralIdx = outPathIdx in
             /// the sting items regardless of the central prop
             let pathInfoNegOne, pathInfoZero =
-                let mapper (idx, (AssignmentPath (updates, _))) =
+                let mapper (idx, (AssignmentPath (_,updates, _))) =
                     let preStingInfo = getInvolvedRandomVarsFromAssnLst updates in
                     if idx = centralIdx then
                         (formNoVarRangeStingItem preStingInfo LNegOne,
@@ -742,7 +752,7 @@ module private Impl = begin
         
         let enumPossiblePathInfo
                 fixGuard
-                (AssignmentPath (updates, toBreak)) : (ConjCmps * StingItem) list =
+                (AssignmentPath (_,updates, toBreak)) : (ConjCmps * StingItem) list =
             if toBreak then
                 match program.mayIfScoreCond with
                 | Some ifGuard ->
@@ -831,7 +841,7 @@ module private Impl = begin
                 List.map produceZeroStings outsideIfRanges in
             
             // generate the central `-1` item
-            let (AssignmentPath (centralPath, _)) = List.item centralIdx enumeratedAssnPaths in
+            let (AssignmentPath (_,centralPath, _)) = List.item centralIdx enumeratedAssnPaths in
             let centralNegOneStingItem =
                 getInvolvedRandomVarsFromAssnLst centralPath
                 |> flip formNoVarRangeStingItem LNegOne in
@@ -839,7 +849,7 @@ module private Impl = begin
             /// the new loopGuard with also the IfRange for the other items
             let otherAssnPaths = List.removeAt centralIdx enumeratedAssnPaths in
             let stingsWithoutCentralPath =
-                List.map (fun (AssignmentPath (updates, _)) -> updates) otherAssnPaths
+                List.map (fun (AssignmentPath (_,updates, _)) -> updates) otherAssnPaths
                 |> List.map (flip enumNonBreakPathInfo $ Some pureIfRange)
                 |> combineInfoLstOfPaths in
             
@@ -864,7 +874,7 @@ module private Impl = begin
         /// a general form to declare every given single branches
         let declareEverySingleBranchInformation branches =
             branches
-            |> List.map (fun (Edge lst) ->
+            |> List.map (fun (Edge (_,_,lst)) ->
                 let toBreak, lst =
                     swap $ until (function ESBreak -> false | _ -> true) lst in
                 let doesNotMention var =
@@ -1033,11 +1043,11 @@ module private Impl = begin
                 | PLCond conds -> conds
                 | _ -> IMPOSSIBLE ()
             in
-            let toSting (ConditionalPath (guard, ess, _)) =
-                let guard = boolExprToProposition guard in
+            let toSting (ConditionalPath (cGuard, ess, _)) =
+                let guard = boolExprToProposition cGuard in
                 if not $ checkSAT (mkQueryCtx ()) [ guard ] then None else
-                let (AssignmentPath (assnLst, _)) = edgeToAssnPath (Edge ess) in
-                let ret x = Some (Edge ess, x) in
+                let (AssignmentPath (_,assnLst, _)) = edgeToAssnPath (Edge (cGuard, AConst NUMERIC_ONE, ess)) in
+                let ret x = Some (Edge (cGuard, AConst NUMERIC_ONE, ess), x) in
                 let anaRes = pathDivisionAnalysis {
                         path = assnLst
                         fixedGuard = And [ guard; loopInvariant ]
