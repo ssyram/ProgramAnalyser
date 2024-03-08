@@ -903,6 +903,76 @@ type private PathDivisionImpl(input) =
     let randVars = Set.ofSeq $ Map.keys randVarRanges
     
     let wp(prop) = assnPathWp path prop
+
+    /// the return value can be consider to be a Seq from map
+    /// which means the variable is unique
+    let getInvolvedRandVarRanges randVarRanges proposition =
+        collectPropositionVars proposition
+        |> Set.toList
+        |> List.choose (fun var ->
+            Map.tryFind var randVarRanges
+            |> Option.map (fun (l, u) -> (var, (l, u))))
+
+    let genRandVarRangesProp randVarRanges =
+        flip List.map randVarRanges (fun (var, (lower, upper)) ->
+            [
+                atomise $ Compare (CmpGe, AVar var, AConst lower)
+                atomise $ Compare (CmpLe, AVar var, AConst upper)
+            ])
+        |> List.concat
+        |> And
+        
+    let rangeRandVars =
+        Map.toList randVarRanges
+        |> genRandVarRangesProp
+    
+    let conjCmpsToProp (ConjCmps lst) =
+        match List.map (Compare >> atomise) lst with
+        | [] -> True
+        | [ x ] -> x
+        | lst -> And lst
+    
+    let isImplied baseCond hd =
+        // forall x. Range(var) /\ baseCond -> hd
+        // ==>
+        // ~ exists x. ~ (Range(var) /\ baseCond -> hd)
+        let preCond = And [
+            rangeRandVars
+            baseCond
+        ] in
+        not $ checkSAT (mkQueryCtx ()) [ Not $ Implies (preCond, hd) ]
+    
+    let rec removeImplied fixGuard (ConjCmps lst) =
+        let isImplied restCond hd =
+            // forall x. Range(var) /\ baseCond -> hd
+            // ==>
+            // ~ exists x. ~ (Range(var) /\ baseCond -> hd)
+            let preCond = And [
+                rangeRandVars
+                conjCmpsToProp fixGuard
+                conjCmpsToProp $ ConjCmps restCond
+            ] in
+            not $ checkSAT (mkQueryCtx ()) [ Not $ Implies (preCond, conjCmpsToProp $ ConjCmps [ hd ]) ]
+        in
+        let rec tryRemove pre lst =
+            match lst with
+            | [] -> pre
+            | hd :: lst ->
+                // see if `hd` is implied by both, if it is, remove it, otherwise, leave it
+                if isImplied (pre ++ lst) hd then tryRemove pre lst
+                else tryRemove (hd :: pre) lst
+        in
+        let next = tryRemove [] lst in
+        if next.Length < lst.Length then removeImplied fixGuard (ConjCmps next) else ConjCmps next
+    
+    let simplifyCmpProp toMerge prop =
+        propToValidConjCmpList toMerge prop
+        |> List.map (removeImplied $ ConjCmps [])
+        |> List.map conjCmpsToCompareProp
+        |> function
+        | [] -> False
+        | [ x ] -> x
+        | lst -> Or lst
     
     /// g_f /\ wp(g_l)
     /// OR
@@ -943,24 +1013,6 @@ type private PathDivisionImpl(input) =
                 endScoreGuard
             ])
         ]
-
-    /// the return value can be consider to be a Seq from map
-    /// which means the variable is unique
-    let getInvolvedRandVarRanges randVarRanges proposition =
-        collectPropositionVars proposition
-        |> Set.toList
-        |> List.choose (fun var ->
-            Map.tryFind var randVarRanges
-            |> Option.map (fun (l, u) -> (var, (l, u))))
-
-    let genRandVarRangesProp randVarRanges =
-        flip List.map randVarRanges (fun (var, (lower, upper)) ->
-            [
-                atomise $ Compare (CmpGe, AVar var, AConst lower)
-                atomise $ Compare (CmpLe, AVar var, AConst upper)
-            ])
-        |> List.concat
-        |> And
     
     /// given target
     /// automatically fill the information about random variables
@@ -1104,16 +1156,6 @@ type private PathDivisionImpl(input) =
 //        List.map collectCmpVars lst
 //        |> Set.unionMany
 //        |> Set.intersect randVars
-        
-    let rangeRandVars =
-        Map.toList randVarRanges
-        |> genRandVarRangesProp
-    
-    let conjCmpsToProp (ConjCmps lst) =
-        match List.map (Compare >> atomise) lst with
-        | [] -> True
-        | [ x ] -> x
-        | lst -> And lst
     
     let rec arithContainsRandVar aExpr =
         match aExpr with
@@ -1259,29 +1301,29 @@ type private PathDivisionImpl(input) =
     
     /// take out each comparison condition to examine whether it can be implied by the other conditions
     /// if it can, then remove it
-    let filterImpliedConds cond (var, (upper, lower, (ConjCmps cmpLst))) =
-        let isImplied restCond hd =
-            // forall x. Range(var) /\ cond /\ restCond -> hd
-            // ==>
-            // ~ exists x. ~ (Range(var) /\ cond /\ restCond -> hd)
-            let preCond = And [
-                rangeRandVars
-                conjCmpsToProp cond
-                conjCmpsToProp (ConjCmps restCond)
-            ] in
-            not $ checkSAT (mkQueryCtx ()) [ Not $ Implies (preCond, conjCmpsToProp $ ConjCmps [ hd ]) ]
-        in
-        let rec tryRemove pre lst =
-            match lst with
-            | [] -> pre
-            | hd :: lst ->
-                // see if `hd` is implied by both, if it is, remove it, otherwise, leave it
-                if isImplied (pre ++ lst) hd then tryRemove pre lst
-                else tryRemove (hd :: pre) lst in
-        let rec removeImplied lst =
-            let next = tryRemove [] lst in
-            if next.Length < lst.Length then removeImplied next else next in
-        (var, (upper, lower, ConjCmps $ removeImplied cmpLst))
+    let filterImpliedConds cond (var, (upper, lower, conjCmps)) =
+        // let isImplied restCond hd =
+        //     // forall x. Range(var) /\ cond /\ restCond -> hd
+        //     // ==>
+        //     // ~ exists x. ~ (Range(var) /\ cond /\ restCond -> hd)
+        //     let preCond = And [
+        //         rangeRandVars
+        //         conjCmpsToProp cond
+        //         conjCmpsToProp (ConjCmps restCond)
+        //     ] in
+        //     not $ checkSAT (mkQueryCtx ()) [ Not $ Implies (preCond, conjCmpsToProp $ ConjCmps [ hd ]) ]
+        // in
+        // let rec tryRemove pre lst =
+        //     match lst with
+        //     | [] -> pre
+        //     | hd :: lst ->
+        //         // see if `hd` is implied by both, if it is, remove it, otherwise, leave it
+        //         if isImplied (pre ++ lst) hd then tryRemove pre lst
+        //         else tryRemove (hd :: pre) lst in
+        // let rec removeImplied lst =
+        //     let next = tryRemove [] lst in
+        //     if next.Length < lst.Length then removeImplied next else next in
+        (var, (upper, lower, removeImplied cond conjCmps))
     
     let divMultiBoundConditions condRelList =
         let divider (cond, relCond) =

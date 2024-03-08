@@ -24,14 +24,14 @@ assignment#p_t:=p_t+1
 assignment#p_t:=p_t+1
 3
 sting
-p_h>=0 and p_t>=0 and p_t-2-p_h>=0
+p_h>=0 and p_t-2-p_h>=0
 next_locs=1#1
 abnormal
 1
 r_1@expectation
 normal
 sting
-1+p_h-p_t>=0 and p_h>=0 and p_t>=0 and p_t-p_h>=0
+1+p_h-p_t>=0 and p_h>=0 and p_t-p_h>=0
 next_locs=-1#1
 abnormal
 1
