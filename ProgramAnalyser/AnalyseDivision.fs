@@ -920,7 +920,9 @@ type private PathDivisionImpl(input) =
                 atomise $ Compare (CmpLe, AVar var, AConst upper)
             ])
         |> List.concat
-        |> And
+        |> function
+        | [] -> True
+        | x  -> And x
         
     let rangeRandVars =
         Map.toList randVarRanges
