@@ -69,6 +69,46 @@ normal
 normal
 normal
 sting
+p_money-15>=0 and 17-p_money>=0 and p_i-10>=0 and 10-p_i>=0
+next_locs=0#0#0#0#0#0#0
+normal
+normal
+normal
+normal
+normal
+normal
+normal
+sting
+p_money-13.5>=0 and 17-p_money>=0 and p_i-10>=0 and 10-p_i>=0
+next_locs=0#0#0#0#0#0#0
+normal
+normal
+normal
+normal
+normal
+normal
+normal
+sting
+p_money-10>=0 and 13.5-p_money>=0 and p_i-10>=0 and 10-p_i>=0
+next_locs=0#0#0#0#0#0#0
+normal
+normal
+normal
+normal
+normal
+normal
+normal
+sting
+p_money-17>=0 20-p_money>=0 and p_i-10>=0 and 10-p_i>=0
+next_locs=0#0#0#0#0#0#0
+normal
+normal
+normal
+normal
+normal
+normal
+normal
+sting
 p_money-17>=0 and 20-p_money>=0 and p_i>=0 and 9-p_i>=0
 next_locs=1#1#1#1#1#1 -10#1 -10
 abnormal
@@ -99,17 +139,25 @@ abnormal
 1
 r_1@expectation@p_money-10 10
 sting
-p_money-17>=0 20-p_money>=0 and p_i-10>=0 and 10-p_i>=0
-next_locs=0#0#0#0#0#0#0
-normal
-normal
-normal
-normal
+p_money-10>=0 and 13.5-p_money>=0 and p_i>=0 and 9-p_i>=0
+next_locs=1#1#1#1#-10#-10#-10
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_1@expectation
 normal
 normal
 normal
 sting
-p_money-15>=0 and 17-p_money>=0 and p_i>=0 and 9-p_i>=0
+9-p_i>=0 and 17-p_money>=0 and p_i>=0 and p_money-15>=0
 next_locs=1#1#1#1#1 -10#1 -10#1 -10
 abnormal
 1
@@ -142,16 +190,6 @@ abnormal
 1
 r_1@expectation@p_money-10 10
 sting
-p_money-15>=0 and 17-p_money>=0 and p_i-10>=0 and 10-p_i>=0
-next_locs=0#0#0#0#0#0#0
-normal
-normal
-normal
-normal
-normal
-normal
-normal
-sting
 p_money-13.5>=0 and 17-p_money>=0 and p_i>=0 and 9-p_i>=0
 next_locs=1#1#1#1#1 -10#-10#-10
 abnormal
@@ -172,44 +210,6 @@ r_1@expectation@5 p_money-10
 abnormal
 1
 r_1@expectation@p_money-10 7
-normal
-normal
-sting
-p_money-13.5>=0 and 17-p_money>=0 and p_i-10>=0 and 10-p_i>=0
-next_locs=0#0#0#0#0#0#0
-normal
-normal
-normal
-normal
-normal
-normal
-normal
-sting
-p_money-10>=0 and 13.5-p_money>=0 and p_i>=0 and 9-p_i>=0
-next_locs=1#1#1#1#-10#-10#-10
-abnormal
-1
-r_1@expectation
-abnormal
-1
-r_1@expectation
-abnormal
-1
-r_1@expectation
-abnormal
-1
-r_1@expectation
-normal
-normal
-normal
-sting
-p_money-10>=0 and 13.5-p_money>=0 and p_i-10>=0 and 10-p_i>=0
-next_locs=0#0#0#0#0#0#0
-normal
-normal
-normal
-normal
-normal
 normal
 normal
 out
