@@ -1060,6 +1060,17 @@ type private PathDivisionImpl(input) =
 //            let upper = getBound false (AConst dfUpper :: upper) in
 //            (var, lower, upper))
     
+    /// given a clause of the form "P1 ~1 c1' /\ ... /\ Pi ~i ci'"
+    /// where Pi is an expression, ci is a constant and ~i is the comparator
+    /// Then, to collect the bounds of each random variables involved
+    ///
+    /// The extraction is given simply by form turning, for example:
+    /// if there is a Pi of the form x1 * r + x2 > 1
+    /// then extracting a bound: r > (1 - x2)/x1 -- assuming all other variables inside are positive
+    ///
+    /// For a single random variable, there might be multiple such bounds extracted
+    ///
+    /// Returns: [(var, [lower-bound-expr], [upper-bound-expr])]
     let analyseGuardRandVarConds conjCmps =
         // firstly normalise the guard to get better guard to analyse
         let conjCmps = simplifyConjCmps conjCmps in
@@ -1067,7 +1078,7 @@ type private PathDivisionImpl(input) =
         let conjCmps = Option.get conjCmps in
         // then find all the random variables and then find upper and lower bounds
         // assume that there is at most ONE found upper and lower bound except the given one
-        Set.intersect (collectVars conjCmps) randVars
+        Set.intersect (collectVars conjCmps) randVars 
         |> Set.toList
         |> List.map (fun var ->
             (var, extractUpperAndLowerBounds var conjCmps))
@@ -1114,6 +1125,16 @@ type private PathDivisionImpl(input) =
     /// 2. should remove the meaningless bound-generating items -- those already implied
     ///
     /// Hence, returns: [(full condition, rand var condition)]
+    /// where rand-var-condition is part of the full-condition with rand-var inside
+    /// The full condition is given by one clause in the disjunctive normal form of `basicGuard /\ locGuard`
+    /// for the given `loc`
+    ///
+    /// This function's functionality:
+    /// 1. get the full proposition as basicGuard /\ locGuard
+    /// 2. use each clause of the disjunctive normal form of the proposition as full-condition
+    /// 3. filter those conditions when they are not satisfiable
+    /// 4. for those satisfiable, select the part with the random variables inside as the second element
+    /// 5. if the second element is meaningless (implied), remove the whole item
     let genValidRandVarConditions basicGuard loc =
         let condition = getLocCondition loc in
         let lst =
@@ -1205,8 +1226,9 @@ type private PathDivisionImpl(input) =
                 ]
     
     let boundWithConditions isLower dfl bounds =
+        let bounds = (AConst dfl, true) :: bounds in
         match bounds with
-        | [] -> [ ((AConst dfl, true), ConjCmps []) ]
+        | [] -> IMPOSSIBLE ()
         | [ x ] -> [ (x, ConjCmps []) ]
         | lst ->
             enumEveryN 2 lst
@@ -1235,12 +1257,41 @@ type private PathDivisionImpl(input) =
         in
         if checkConjCmpListSAT (basicConds + totalCond) then Some (varRanges, totalCond) else None
     
+    /// take out each comparison condition to examine whether it can be implied by the other conditions
+    /// if it can, then remove it
+    let filterImpliedConds cond (var, (upper, lower, (ConjCmps cmpLst))) =
+        let isImplied restCond hd =
+            // forall x. Range(var) /\ cond /\ restCond -> hd
+            // ==>
+            // ~ exists x. ~ (Range(var) /\ cond /\ restCond -> hd)
+            let preCond = And [
+                rangeRandVars
+                conjCmpsToProp cond
+                conjCmpsToProp (ConjCmps restCond)
+            ] in
+            not $ checkSAT (mkQueryCtx ()) [ Not $ Implies (preCond, conjCmpsToProp $ ConjCmps [ hd ]) ]
+        in
+        let rec tryRemove pre lst =
+            match lst with
+            | [] -> pre
+            | hd :: lst ->
+                // see if `hd` is implied by both, if it is, remove it, otherwise, leave it
+                if isImplied (pre ++ lst) hd then tryRemove pre lst
+                else tryRemove (hd :: pre) lst in
+        let rec removeImplied lst =
+            let next = tryRemove [] lst in
+            if next.Length < lst.Length then removeImplied next else next in
+        (var, (upper, lower, ConjCmps $ removeImplied cmpLst))
+    
     let divMultiBoundConditions condRelList =
         let divider (cond, relCond) =
             // DEBUG: revise the guard analysis method -- DO NOT USE CONJ-GE, keep the full guard
 //            let relConjGe = conjCmpsToGeConj LossConfirm relCond in
             let varBounds = analyseGuardRandVarConds relCond in
-            let condVarBounds = List.map getConditionalVarBounds varBounds in
+            let condVarBounds =
+                List.map getConditionalVarBounds varBounds
+                |> List.map (List.map (filterImpliedConds cond))
+            in
             listCartesian condVarBounds
             |> List.choose (combineBetweenVarsConds cond)
             // DEBUG: SHOULD NOT ADD ORIGINAL CONDITION
@@ -1329,7 +1380,7 @@ type private PathDivisionImpl(input) =
         |> tryMergeWithConditions checkIfStillValid
     
     /// generate the location guards
-    /// returns: [(loc, localGuard, varRanges)]
+    /// returns: [(loc, localGuard, varRanges)] where `loc` is the given location
     let genLocJoinInfo basicProp loc =
         if loc = LZero then [] else
         genValidRandVarConditions basicProp loc

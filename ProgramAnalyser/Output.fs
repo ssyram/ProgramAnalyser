@@ -184,7 +184,7 @@ module private Impl = begin
                 | [] -> BTrue
                 | lst -> List.reduce (curry BAnd) lst
         in
-        debugPrint $"New Invariant: \"{newPreLoopGuard}\",\nCompared to the old: \"{program.preLoopGuard}\"."
+        // debugPrint $"New Invariant: \"{newPreLoopGuard}\",\nCompared to the old: \"{program.preLoopGuard}\"."
         { program with preLoopGuard = newPreLoopGuard }
 
     /// to create a local context that captures the local information within a type
