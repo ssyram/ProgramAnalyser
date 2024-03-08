@@ -1,7 +1,7 @@
 6
 6
 bounded_domain
-p_count@0 5
+p_count@0 30
 p_i@0 4
 no_common_invs
 initial_inputs

@@ -25,18 +25,18 @@ next_locs=1#1
 normal
 normal
 sting
-p_i-3>=0 and 4-p_i>=0 and p_count>=0 and 29-p_count>=0
+29-p_count>=0 and 4-p_i>=0 and p_count>=0 and p_i-3>=0
 next_locs=-10#1
-normal
-normal
-sting
-p_i-3>=0 and 4-p_i>=0 and p_count-29>=0 and 30-p_count>=0
-next_locs=0#1
 normal
 normal
 sting
 p_i>=0 and 4-p_i>=0 and p_count-30>=0 and 31-p_count>=0
 next_locs=0#0
+normal
+normal
+sting
+p_i-3>=0 and 4-p_i>=0 and p_count-29>=0 and 30-p_count>=0
+next_locs=0#1
 normal
 normal
 out

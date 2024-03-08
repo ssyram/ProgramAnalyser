@@ -420,6 +420,14 @@ let normaliseConjCmps (ConjCmps lst) =
     |> List.map (curry backToCmp true)
     |> ConjCmps
 
+/// Turn examples of the form:
+/// P1 ~1 c1 /\ P2 ~2 c2 /\ ... /\ Pn ~n cn
+/// where Pi is a term, ~i is the comparator and ci must be constant (AConst ci)
+/// Then, find the tight range of each Pi -- will unify the range
+///
+/// WILL NOT test the form of Pi, it is just an auxiliary function
+/// If there is inconsistency, for example: a > 0 /\ a < 0 then there is no range
+/// Hence it returns `None` as the value -- indicating the contradiction within it
 let collectTightRanges (ConjCmps lst) =
     let itemBoundMap = HashMap () in
     let addAndFindInConsistency (op, lhs, rhs) =
