@@ -6,8 +6,8 @@ program="dotnet ../../../ProgramAnalyser/bin/Debug/net8.0/ProgramAnalyser.dll -O
 
 $program add-uniform-unbounded-Q1.program -no_truncate -direct -Rp_x:0~1 -Rp_y:0~1
 $program add-uniform-unbounded-Q2.program -no_truncate -direct -Rp_x:0~1 -Rp_y:0~1
-$program cav-example-5-Q1.program -no_truncate -direct -m:10 -Rp_m:10~20 -Rp_i:0~20
-$program cav-example-5-Q2.program -no_truncate -direct -m:10 -Rp_m:10~20 -Rp_i:0~20
+$program cav-example-5-Q1.program -no_truncate -direct -m:10 -Rp_money:10~20 -Rp_i:0~20
+$program cav-example-5-Q2.program -no_truncate -direct -m:10 -Rp_money:10~20 -Rp_i:0~20
 $program cav-example-7-Q1.program -no_truncate -direct -Rp_c:0~30 -Rp_i:0~4
 $program cav-example-7-Q2.program -no_truncate -direct -Rp_c:0~30 -Rp_i:0~4
 $program growing-walk-Q1.program -no_truncate -direct -acc 1e-4 -Rp_t:0~0.1 -Rp_x:1~10 -degree:8

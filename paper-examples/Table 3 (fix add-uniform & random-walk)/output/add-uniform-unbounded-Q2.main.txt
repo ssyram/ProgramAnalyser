@@ -33,7 +33,7 @@ abnormal
 1
 r_2@expectation@0.5 15-p_x
 sting
-1-p_y>=0 and p_x-15>=0 and p_y>=0
+16-p_x>=0 and 1-p_y>=0 and p_x-15>=0 and p_y>=0
 next_locs=0#0
 normal
 normal
