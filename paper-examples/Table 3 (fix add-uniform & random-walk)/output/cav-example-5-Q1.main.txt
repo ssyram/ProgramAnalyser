@@ -35,7 +35,7 @@ assignment#p_money:=p_money-r_1
 assignment#p_i:=p_i+1
 6
 sting
-p_money-20>=0 and p_i>=0 and 9-p_i>=0
+9-p_i>=0 and p_i>=0 and p_money-20>=0
 next_locs=1#1#1#1#1#1#1
 abnormal
 1
@@ -59,17 +59,7 @@ abnormal
 1
 r_1@expectation
 sting
-p_i-9>=0 and p_money-10>=0
-next_locs=0#0#0#0#0#0#0
-normal
-normal
-normal
-normal
-normal
-normal
-normal
-sting
-p_money-17>=0 and 20-p_money>=0 and p_i>=0 and 9-p_i>=0
+9-p_i>=0 and 20-p_money>=0 and p_i>=0 and p_money-17>=0
 next_locs=1#1#1#1#1#1 -10#1 -10
 abnormal
 1
@@ -99,7 +89,7 @@ abnormal
 1
 r_1@expectation@p_money-10 10
 sting
-p_money-10>=0 and 13.5-p_money>=0 and p_i>=0 and 9-p_i>=0
+9-p_i>=0 and 13.5-p_money>=0 and p_i>=0 and p_money-10>=0
 next_locs=1#1#1#1#-10#-10#-10
 abnormal
 1
@@ -116,6 +106,33 @@ r_1@expectation
 abnormal
 1
 r_1@expectation
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_1@expectation
+sting
+9-p_i>=0 and 15-p_money>=0 and p_i>=0 and p_money-13.5>=0
+next_locs=1#1#1#1#1 -10#-10#-10
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_1@expectation@5 1.4285714285714286*p_money-14.285714285714285
+abnormal
+1
+r_1@expectation@1.4285714285714286*p_money-14.285714285714285 10
 abnormal
 1
 r_1@expectation
@@ -156,30 +173,13 @@ abnormal
 1
 r_1@expectation@p_money-10 10
 sting
-9-p_i>=0 and 15-p_money>=0 and p_i>=0 and p_money-13.5>=0
-next_locs=1#1#1#1#1 -10#-10#-10
-abnormal
-1
-r_1@expectation
-abnormal
-1
-r_1@expectation
-abnormal
-1
-r_1@expectation
-abnormal
-1
-r_1@expectation
-abnormal
-1
-r_1@expectation@5 1.4285714285714286*p_money-14.285714285714285
-abnormal
-1
-r_1@expectation@1.4285714285714286*p_money-14.285714285714285 10
-abnormal
-1
-r_1@expectation
-abnormal
-1
-r_1@expectation
+p_i-9>=0 and p_money-10>=0
+next_locs=0#0#0#0#0#0#0
+normal
+normal
+normal
+normal
+normal
+normal
+normal
 out
