@@ -31,6 +31,7 @@
         <Compile Include="AnalyseDivision.fs" />
         <Compile Include="Input.fs" />
         <Compile Include="Output.fs" />
+        <Compile Include="ExampleData.fs" />
         <Compile Include="Run.fs" />
         <Compile Include="Test.fs" />
         <Compile Include="VdParserSupport.fs" />

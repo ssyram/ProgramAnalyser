@@ -42,6 +42,29 @@ type ArgAnalysisResult = {
 let inline runGenOutput input =
     genOutput input
 
+let runGenConfig program randVars args =
+    let varDivM =
+        Map.toList args.varDivisionM
+        |> List.map (fun (k, v) -> (Variable k, uint v))
+        |> Map.ofList in
+    let varRanges =
+        Map.toList args.specifiedRanges
+        |> List.map (fun (k, v) -> (Variable k, v))
+        |> Map.ofList in
+    let cfgInput =
+        {
+            cfgProgram = program
+            cfgRandVars = randVars
+            cfgDegOne = uint args.degree1
+            cfgDegTwo = uint args.degree2
+            cfgDefDivM = uint args.globalDivisionM
+            cfgVarDivM = varDivM
+            cfgVarRanges = varRanges
+            cfgSolver = args.solver 
+        }
+    in
+    genConfigOutput cfgInput
+
 /// returns: (main, Maybe config)
 let inline runParseAnalysis main maybeArgs =
     let programPath = main.programPath in
@@ -63,32 +86,31 @@ let inline runParseAnalysis main maybeArgs =
         }
     in
     let main = runGenOutput input in
+    let maybeConfig = Option.map (runGenConfig program lst) maybeArgs in
     
-    match maybeArgs with
-    | Some args ->
-        let varDivM =
-            Map.toList args.varDivisionM
-            |> List.map (fun (k, v) -> (Variable k, uint v))
-            |> Map.ofList in
-        let varRanges =
-            Map.toList args.specifiedRanges
-            |> List.map (fun (k, v) -> (Variable k, v))
-            |> Map.ofList in
-        let cfgInput =
-            {
-                cfgProgram = program
-                cfgRandVars = lst
-                cfgDegOne = uint args.degree1
-                cfgDegTwo = uint args.degree2
-                cfgDefDivM = uint args.globalDivisionM
-                cfgVarDivM = varDivM
-                cfgVarRanges = varRanges
-                cfgSolver = args.solver 
-            }
-        in
-        let cfg = genConfigOutput cfgInput in
-        (main, Some cfg)
-    | None -> (main, None)
+    (main, maybeConfig)
+
+type SpProgram =
+    | SPAddUniformUnboundedQ1
+    | SPAddUniformUnboundedQ2
+    | SP_CAV_Ex5_Q1
+    | SP_CAV_Ex5_Q2
+    | SP_CAV_Ex7_Q1
+    | SP_CAV_Ex7_Q2
+    | SPGrowingWalkQ1
+    | SPGrowingWalkQ2
+    | SPRdBoxWalk
+
+let runSpAnalysis name =
+    match name with
+    | "$some$name" -> Some ("main", Some "cfg")
+    | _            -> None
+
+let runAllAnalysis main maybeArgs =
+    let fileName = Path.GetFileNameWithoutExtension main.programPath in
+    match runSpAnalysis fileName with
+    | Some ret -> ret
+    | None     -> runParseAnalysis main maybeArgs
 
 let inline runPrintingOut (mainInput, args) (outPath : string option) =
     let pPath = mainInput.programPath in
@@ -103,7 +125,7 @@ let inline runPrintingOut (mainInput, args) (outPath : string option) =
     in
     let timing = System.Diagnostics.Stopwatch () in
     timing.Start ();
-    let main, cfg = runParseAnalysis mainInput args in
+    let main, cfg = runAllAnalysis mainInput args in
     File.WriteAllText (outMainPath, main);
     File.WriteAllText (outConfigPath, Option.get cfg);
     let time = timing.Elapsed in
