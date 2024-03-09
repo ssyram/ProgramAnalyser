@@ -1297,13 +1297,13 @@ type private PathDivisionImpl(input) =
                     (CmpGe, tarVal, otrVal)
             else
                 match (tarEq, otrEq) with
-                | false, true ->
-                    // r < tar && r <= other
-                    // so, to take: r < tar, it can be: tar <= other
-                    (CmpLe, tarVal, otrVal)
-                | _, _ ->
-                    // otherwise, it must be: tar < other
+                | true, false ->
+                    // r <= tar && r < other
+                    // r <= tar <==> tar < other
                     (CmpLt, tarVal, otrVal)
+                | _, _ ->
+                    // otherwise, tar <= other
+                    (CmpLe, tarVal, otrVal)
         in
         match lst with
         | [] -> []

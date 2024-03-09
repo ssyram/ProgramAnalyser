@@ -38,7 +38,7 @@ next_locs=0#0
 normal
 normal
 sting
-14-p_x>=0 and 1-p_y>=0 and p_x>=0 and p_y>=0
+14-p_x>=0 and 1-p_y>=0 and p_x>=0 and p_y-1>=0
 next_locs=-10#1
 abnormal
 1
@@ -47,7 +47,7 @@ abnormal
 1
 r_2@expectation
 sting
-14.5-p_x>=0 and 1-p_y>=0 and p_x-14>=0 and p_y>=0
+14.5-p_x>=0 and 1-p_y>=0 and p_x-14>=0 and p_y-1>=0
 next_locs=-10#1
 abnormal
 1
