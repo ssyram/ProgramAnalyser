@@ -13,7 +13,7 @@ assignment#p_y:=p_y+1
 assignment#p_x:=p_x+r_1
 1
 assignment#p_x:=p_x+r_2
-7
+5
 sting
 14-p_x>=0 and -p_y>=0 and p_x>=0 and p_y>=0
 next_locs=1#1
@@ -55,18 +55,4 @@ r_1@expectation
 abnormal
 1
 r_2@expectation@0.5 15-p_x
-sting
-15-p_x>=0 and 1-p_y>=0 and p_x-14.5>=0 and p_y>=0
-next_locs=-10#0
-abnormal
-1
-r_1@expectation@0 15-p_x
-normal
-sting
-15-p_x>=0 and -p_y>=0 and p_x-14.5>=0 and p_y>=0
-next_locs=1#0
-abnormal
-1
-r_1@expectation@0 15-p_x
-normal
 out

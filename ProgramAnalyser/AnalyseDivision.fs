@@ -1225,49 +1225,77 @@ type private PathDivisionImpl(input) =
     
     let combineConditions (((lower, lEq as l), lCond), ((upper, uEq as u), uCond)) =
         let newCmp = ConjCmps [
-                if not (isConst lower || isConst upper) then
-                    let comparator =
-                        match lEq, uEq with
-                        | true, true -> CmpLe
-                        | _, _       -> CmpLt
-                    in
-                    (comparator, lower, upper)
+                // if not (isConst lower || isConst upper) then
+                let comparator =
+                    match lEq, uEq with
+                    | true, true -> CmpLe
+                    | _, _       -> CmpLt
+                in
+                (comparator, lower, upper)
             ] in
         (l, u, newCmp + lCond + uCond)
     
-    /// given that r ~ bv1 && r ~ bv2 where if `isLower` then ~ is >/>= otherwise ~ is </<=
-    /// returns the list of which to take and also the required condition
-    let getConditions isLower ((bv1, eq1 as p1), (bv2, eq2 as p2)) =
-        if isLower then
-            match eq1, eq2 with
-            | true, false ->
-                // r >= bv1 && r > bv2
-                // so, to take: r >= bv1, it must be: bv1 > bv2
-                // and to take: r > bv2, it should be: bv1 <= bv2
-                [
-                    (p1, ConjCmps [ (CmpGt, bv1, bv2) ])
-                    (p2, ConjCmps [ (CmpLe, bv1, bv2) ])
-                ]
-            | _, _ ->
-                [
-                    (p1, ConjCmps [ (CmpGe, bv1, bv2) ])
-                    (p2, ConjCmps [ (CmpLt, bv1, bv2) ])
-                ]
-        else
-            match eq1, eq2 with
-            | false, true ->
-                // r < bv1 && r <= bv2
-                // so, to take: r <= bv2, it must be: bv1 > bv2
-                // and to take: r < bv1, it should be: bv1 <= bv2
-                [
-                    (p2, ConjCmps [ (CmpGt, bv1, bv2) ])
-                    (p1, ConjCmps [ (CmpLe, bv1, bv2) ])
-                ]
-            | _, _ ->
-                [
-                    (p2, ConjCmps [ (CmpGe, bv1, bv2) ])
-                    (p1, ConjCmps [ (CmpLt, bv1, bv2) ])
-                ]
+    // /// given that r ~ bv1 && r ~ bv2 where if `isLower` then ~ is >/>= otherwise ~ is </<=
+    // /// returns the list of which to take and also the required condition
+    // let getConditions isLower ((bv1, eq1 as p1), (bv2, eq2 as p2)) =
+    //     if isLower then
+    //         match eq1, eq2 with
+    //         | true, false ->
+    //             // r >= bv1 && r > bv2
+    //             // so, to take: r >= bv1, it must be: bv1 > bv2
+    //             // and to take: r > bv2, it should be: bv1 <= bv2
+    //             [
+    //                 (p1, ConjCmps [ (CmpGt, bv1, bv2) ])
+    //                 (p2, ConjCmps [ (CmpLe, bv1, bv2) ])
+    //             ]
+    //         | _, _ ->
+    //             [
+    //                 (p1, ConjCmps [ (CmpGe, bv1, bv2) ])
+    //                 (p2, ConjCmps [ (CmpLt, bv1, bv2) ])
+    //             ]
+    //     else
+    //         match eq1, eq2 with
+    //         | false, true ->
+    //             // r < bv1 && r <= bv2
+    //             // so, to take: r <= bv2, it must be: bv1 > bv2
+    //             // and to take: r < bv1, it should be: bv1 <= bv2
+    //             [
+    //                 (p2, ConjCmps [ (CmpGt, bv1, bv2) ])
+    //                 (p1, ConjCmps [ (CmpLe, bv1, bv2) ])
+    //             ]
+    //         | _, _ ->
+    //             [
+    //                 (p2, ConjCmps [ (CmpGe, bv1, bv2) ])
+    //                 (p1, ConjCmps [ (CmpLt, bv1, bv2) ])
+    //             ]
+    
+    let rec allWithCond isLower pre lst =
+        let distinguish isLower (tarVal, tarEq) (otrVal, otrEq) =
+            if isLower then
+                match (tarEq, otrEq) with
+                | true, false ->
+                    // r >= tar && r > other
+                    // so, to take: r >= tar, it must be: tar > other
+                    (CmpGt, tarVal, otrVal)
+                | _, _ ->
+                    // otherwise, tar >= other
+                    (CmpGe, tarVal, otrVal)
+            else
+                match (tarEq, otrEq) with
+                | false, true ->
+                    // r < tar && r <= other
+                    // so, to take: r < tar, it can be: tar <= other
+                    (CmpLe, tarVal, otrVal)
+                | _, _ ->
+                    // otherwise, it must be: tar < other
+                    (CmpLt, tarVal, otrVal)
+        in
+        match lst with
+        | [] -> []
+        | hd :: lst ->
+            let other = pre ++ lst in
+            let cond = ConjCmps $ List.map (distinguish isLower hd) other in
+            (hd, cond) :: allWithCond isLower (hd :: pre) lst
     
     let boundWithConditions isLower dfl bounds =
         let bounds = (AConst dfl, true) :: bounds in
@@ -1275,11 +1303,16 @@ type private PathDivisionImpl(input) =
         | [] -> IMPOSSIBLE ()
         | [ x ] -> [ (x, ConjCmps []) ]
         | lst ->
-            enumEveryN 2 lst
-            |> List.map (function [ x; y ] -> (x, y) | _ -> IMPOSSIBLE ())
-            |> List.collect (getConditions isLower)
+            allWithCond isLower [] lst
+            // DEBUG: this is incorrect -- should be forall but not just any two
+            // enumEveryN 2 lst
+            // |> List.map (function [ x; y ] -> (x, y) | _ -> IMPOSSIBLE ())
+            // |> List.collect (getConditions isLower)
     
     /// for this variable, returns the list of lower bound, upper bound and also the condition for this bound
+    ///
+    /// The bound condition is, for a given l \in Lowers, u \in Uppers
+    /// l </<= u /\ forall l' \in Lowers. l >/>= l' /\ forall u' \in Uppers. u </<= u'
     let getConditionalVarBounds (var, (lowers, uppers)) =
         let dflLower, dflUpper = Map.find var randVarRanges in
         let lowerWithConditions = boundWithConditions true dflLower lowers in
@@ -1290,6 +1323,10 @@ type private PathDivisionImpl(input) =
         |> List.map combineConditions
         |> List.map (fun e -> (var, e))
     
+    let noRvPart (ConjCmps lst) =
+        let noRv (_,a1,a2) = not (arithContainsRandVar a1 || arithContainsRandVar a2) in
+        ConjCmps $ List.filter noRv lst
+    
     let combineBetweenVarsConds basicConds varRangesWithConds =
         let repose (var, (lower, upper, cond)) =
             ((var, lower, upper), cond)
@@ -1299,7 +1336,8 @@ type private PathDivisionImpl(input) =
             |> List.unzip
             |> BiMap.sndMap (List.fold (+) (ConjCmps []))
         in
-        if checkConjCmpListSAT (basicConds + totalCond) then Some (varRanges, totalCond) else None
+        let totalCond' = totalCond + noRvPart basicConds in
+        if checkConjCmpListSAT (basicConds + totalCond) then Some (varRanges, totalCond') else None
     
     /// take out each comparison condition to examine whether it can be implied by the other conditions
     /// if it can, then remove it
@@ -1481,7 +1519,7 @@ type private PathDivisionImpl(input) =
             | [ _; _ ] ->
                 // for only two of them, one can merge
                 propToValidConjCmpList true $ basicJoinCondition locTypes
-            | _ -> genNonMergeableGuards locTypes
+            | _ -> propToValidConjCmpList true $ basicJoinCondition locTypes
         in
         let mayGenSomeJoins bp =
             // returns:

@@ -14,9 +14,9 @@ assignment#p_t:=p_t+r_1
 2
 assignment#p_x:=p_x+r_2
 assignment#p_t:=p_t+r_2
-7
+12
 sting
-9-p_t>=0 and (-0.2)-p_x>=0 and p_t>=0 and 0.3+p_x>=0 and 10.8+p_x-p_t>=0
+9-p_t>=0 and (-0.2)-p_x>=0 and p_t>=0 and 0.3+p_x>=0
 next_locs=1#1
 abnormal
 1
@@ -34,7 +34,19 @@ abnormal
 1
 r_2@expectation
 sting
-9.5-p_t>=0 and 0.8-p_x>=0 and p_t-9>=0 and 0.3+p_x>=0 and 9.2+p_x-p_t>=0
+9.5-p_t>=0 and 0.8-p_x>=0 and p_t-9>=0 and p_x-0.3>=0 and 9.2+p_x-p_t>=0
+next_locs=1#1 -10
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation@0.5 0.8-p_x
+abnormal
+1
+r_2@expectation@0.5 10-p_t
+sting
+9.5-p_t>=0 and 0.3-p_x>=0 and p_t-9>=0 and 0.3+p_x>=0 and 9.2+p_x-p_t>=0
 next_locs=1#1 -10
 abnormal
 1
@@ -46,7 +58,19 @@ abnormal
 1
 r_2@expectation@0.8-p_x 10-p_t
 sting
-9-p_t>=0 and 0.3-p_x>=0 and p_t>=0 and 0.2+p_x>=0 and 10.8+p_x-p_t>=0
+9.5-p_t>=0 and 0.3-p_x>=0 and p_t-9.2-p_x>=0 and p_t-9>=0 and 0.3+p_x>=0
+next_locs=1#1 -10
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation@0.5 10-p_t
+abnormal
+1
+r_2@expectation@0.8-p_x 10-p_t
+sting
+9-p_t>=0 and 0.3-p_x>=0 and p_t>=0 and 0.2+p_x>=0
 next_locs=1#1 -10
 abnormal
 1
@@ -63,17 +87,7 @@ next_locs=0#0
 normal
 normal
 sting
-10-p_t>=0 and 0.8-p_x>=0 and 9.2-p_x-p_t>=0 and p_t-9.5>=0 and 0.8+p_x>=0
-next_locs=1 -10#0
-abnormal
-1
-r_1@expectation@0 0.8+p_x
-abnormal
-1
-r_1@expectation@0.8+p_x 10-p_t
-normal
-sting
-9-p_t>=0 and (-0.3)-p_x>=0 and p_t>=0 and 0.8+p_x>=0 and 10.8+p_x-p_t>=0
+9-p_t>=0 and (-0.3)-p_x>=0 and 9.2-p_x-p_t>=0 and p_t>=0 and 0.8+p_x>=0
 next_locs=1 -10#1
 abnormal
 1
@@ -84,4 +98,46 @@ r_1@expectation@0.8+p_x 0.5
 abnormal
 1
 r_2@expectation
+sting
+9.5-p_t>=0 and (-0.3)-p_x>=0 and 9.2-p_x-p_t>=0 and p_t-9.2-p_x>=0 and p_t-9>=0 and 0.8+p_x>=0
+next_locs=1 -10#1 -10
+abnormal
+1
+r_1@expectation@0 0.8+p_x
+abnormal
+1
+r_1@expectation@0.8+p_x 0.5
+abnormal
+1
+r_2@expectation@0.5 10-p_t
+abnormal
+1
+r_2@expectation@0.8-p_x 10-p_t
+sting
+10-p_t>=0 and (-0.3)-p_x>=0 and 9.2-p_x-p_t>=0 and p_t-9.5>=0 and 0.8+p_x>=0
+next_locs=1 -10#0
+abnormal
+1
+r_1@expectation@0 0.8+p_x
+abnormal
+1
+r_1@expectation@0.8+p_x 10-p_t
+normal
+sting
+10-p_t>=0 and (-0.3)-p_x>=0 and p_t-9.5>=0 and 0.8+p_x>=0 and p_x+p_t-9.2>=0
+next_locs=1 -10#0
+abnormal
+1
+r_1@expectation@0 10-p_t
+abnormal
+1
+r_1@expectation@0.8+p_x 10-p_t
+normal
+sting
+10-p_t>=0 and 0.8-p_x>=0 and p_t-9.5>=0 and 0.3+p_x>=0
+next_locs=1#0
+abnormal
+1
+r_1@expectation@0 10-p_t
+normal
 out
