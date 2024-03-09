@@ -332,14 +332,29 @@ type LossConfirm = LossConfirm
 /// MAY HAVE ACCURACY LOSS
 /// SHOULD CONFIRM THE LOSS HERE
 let cmpToArithExprList (LossConfirm) (op, a1, a2) =
-    match op with
-    | CmpEq -> [ AOperation (OpMinus, [a1; a2])
-                 AOperation (OpMinus, [a2; a1]) ]
-    | CmpNeq -> failwith "Neq is not expressible in out prop."
-    | CmpGe -> [ AOperation (OpMinus, [a1; a2]) ]
-    | CmpGt -> [ AOperation (OpMinus, [a1; a2]) ]
-    | CmpLe -> [ AOperation (OpMinus, [a2; a1]) ]
-    | CmpLt -> [ AOperation (OpMinus, [a2; a1]) ]
+    let isInt (Variable v) = Set.contains v Flags.INT_VARS in
+    match (op, a1, a2) with
+    | (CmpGt, AVar v, a2) when isInt v ->
+        // v > a2 ==> v >= a2+1 ==> v - (a2+1) >= 0
+        [ AOperation (OpMinus, [a1; AOperation (OpAdd, [a2; AConst NUMERIC_ONE])]) ]
+    | (CmpGt, _, AVar v) when isInt v ->
+        // a1 > v ==> a1 - 1 >= v ==> a1 - 1 - v >= 0
+        [ AOperation (OpMinus, [a1; AOperation (OpAdd, [a2; AConst NUMERIC_ONE])]) ]
+    | (CmpLt, AVar v, _) when isInt v ->
+        // v < a2 ==> v <= a2 - 1 ==> a2 - 1 - v >= 0
+        [ AOperation (OpMinus, [a2; AOperation (OpAdd, [a1; AConst NUMERIC_ONE])]) ]
+    | (CmpLt, _, AVar v) when isInt v ->
+        // a1 < v ==> a1 + 1 <= v ==> v - a1 - 1 >= 0
+        [ AOperation (OpMinus, [a2; AOperation (OpAdd, [a1; AConst NUMERIC_ONE])]) ]
+    | _ ->
+        match op with
+        | CmpEq -> [ AOperation (OpMinus, [a1; a2])
+                     AOperation (OpMinus, [a2; a1]) ]
+        | CmpNeq -> failwith "Neq is not expressible in out prop."
+        | CmpGe -> [ AOperation (OpMinus, [a1; a2]) ]
+        | CmpGt -> [ AOperation (OpMinus, [a1; a2]) ]
+        | CmpLe -> [ AOperation (OpMinus, [a2; a1]) ]
+        | CmpLt -> [ AOperation (OpMinus, [a2; a1]) ]
 
 /// pure conversion, no optimisation
 let dnfPropToGeConj confirm dnf =

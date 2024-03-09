@@ -4,8 +4,8 @@ cd "Table 3 (fix add-uniform & random-walk)/parser-inputs3/"
 
 program="dotnet ../../../ProgramAnalyser/bin/Debug/net8.0/ProgramAnalyser.dll -O ../output"
 
-$program add-uniform-unbounded-Q1.program -no_truncate -direct -Rp_x:0~1 -Rp_y:0~1
-$program add-uniform-unbounded-Q2.program -no_truncate -direct -Rp_x:0~1 -Rp_y:0~1
+$program add-uniform-unbounded-Q1.program -no_truncate -direct -Rp_x:0~1 -Rp_y:0~1 -int:p_y
+$program add-uniform-unbounded-Q2.program -no_truncate -direct -Rp_x:0~1 -Rp_y:0~1 -int:p_y
 $program cav-example-5-Q1.program -no_truncate -direct -m:10 -Rp_money:10~20 -Rp_i:0~20
 $program cav-example-5-Q2.program -no_truncate -direct -m:10 -Rp_money:10~20 -Rp_i:0~20
 $program cav-example-7-Q1.program -no_truncate -direct -Rp_count:0~30 -Rp_i:0~4

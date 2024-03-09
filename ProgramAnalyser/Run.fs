@@ -295,6 +295,18 @@ let private parseSolver (str : string) =
     | "-solver:sdp" -> Some "SDP"
     | _ -> None
 
+let private parseIntVar (str : string) =
+    if str.StartsWith "-int:" && str.Length > 5 then Some $ str[5..]
+    else None
+
+// let testParseIntVar () =
+//     testExamples parseIntVar [
+//         "-int:"
+//         "-int:p_x"
+//         "-int:p_y"
+//         "-int:123"
+//     ]
+
 let rec private argAnalysis args acc =
     let loop = argAnalysis in
     match args with
@@ -314,6 +326,9 @@ let rec private argAnalysis args acc =
             acc with
                 endLoopScoreAccuracy = Some accVal
         }
+    | intVar :: args when Option.isSome $ parseIntVar intVar ->
+        Flags.INT_VARS <- Set.add (Option.get $ parseIntVar intVar) Flags.INT_VARS;
+        loop args acc
     | solver :: args when Option.isSome $ parseSolver solver ->
         loop args {
             acc with solver = Option.get $ parseSolver solver 
