@@ -1352,8 +1352,8 @@ type private PathDivisionImpl(input) =
             |> List.unzip
             |> BiMap.sndMap (List.fold (+) (ConjCmps []))
         in
-        let totalCond' = totalCond + noRvPart basicConds in
-        if checkConjCmpListSAT (basicConds + totalCond) then Some (varRanges, totalCond') else None
+        let totalCond = totalCond + basicConds in
+        if checkConjCmpListSAT totalCond then Some (varRanges, totalCond) else None
     
     /// take out each comparison condition to examine whether it can be implied by the other conditions
     /// if it can, then remove it

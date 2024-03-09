@@ -1,7 +1,7 @@
 p_x:=0;
 p_t:=0;
 
-[p_x>=-1.8 and 1.8-p_x>=0 and p_t>=0]
+[p_x>=-1.8 and 1.8-p_x>=0 and p_t>=0 and p_t <= 11]
 while p_x>= -0.8 and 0.8-p_x >=0 do
    if prob(0.5) then
       p_x:=p_x-r_1;
