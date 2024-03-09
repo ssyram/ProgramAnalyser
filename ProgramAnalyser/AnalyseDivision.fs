@@ -1285,25 +1285,26 @@ type private PathDivisionImpl(input) =
     //             ]
     
     let rec allWithCond isLower pre lst =
+        // DEBUG: make it strict to let the whole division non-overlapping
         let distinguish isLower (tarVal, tarEq) (otrVal, otrEq) =
             if isLower then
                 match (tarEq, otrEq) with
-                | true, false ->
-                    // r >= tar && r > other
-                    // so, to take: r >= tar, it must be: tar > other
-                    (CmpGt, tarVal, otrVal)
-                | _, _ ->
-                    // otherwise, tar >= other
+                | false, true ->
+                    // r > tar && r >= other
+                    // so, to take: r > tar, it can be: tar >= other
                     (CmpGe, tarVal, otrVal)
+                | _, _ ->
+                    // otherwise, tar > other
+                    (CmpGt, tarVal, otrVal)
             else
                 match (tarEq, otrEq) with
-                | true, false ->
-                    // r <= tar && r < other
-                    // r <= tar <==> tar < other
-                    (CmpLt, tarVal, otrVal)
-                | _, _ ->
-                    // otherwise, tar <= other
+                | false, true ->
+                    // r < tar && r <= other
+                    // to take: r < tar, it can be: tar < other
                     (CmpLe, tarVal, otrVal)
+                | _, _ ->
+                    // otherwise, tar < other
+                    (CmpLt, tarVal, otrVal)
         in
         match lst with
         | [] -> []
@@ -1382,6 +1383,8 @@ type private PathDivisionImpl(input) =
     
     let divMultiBoundConditions condRelList =
         let divider (cond, relCond) =
+            // DEBUG: the condition should be only the part without random variables
+            let cond = noRvPart cond in
             // DEBUG: revise the guard analysis method -- DO NOT USE CONJ-GE, keep the full guard
 //            let relConjGe = conjCmpsToGeConj LossConfirm relCond in
             let varBounds = analyseGuardRandVarConds relCond in
