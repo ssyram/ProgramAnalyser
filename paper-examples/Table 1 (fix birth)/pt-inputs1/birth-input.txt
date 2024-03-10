@@ -1,15 +1,15 @@
-phylogenetic-model@score_recursive
+birth@score_recursive
 p_lambda p_time
 1
 r_1@CU@0 0.5
 truncation@termination
 2
+p_time:=p_time-r_1@amount:=amount+r_2
+p_lambda>=0 and 2-p_lambda>=0 and p_time>=0@r_1
 p_time:=p_time-r_1
-2-p_lambda>=0 and 10-p_time>=0 and p_lambda>=0 and p_time>=0 @r_1
-p_time:=p_time-r_1
-2-p_lambda>=0 and 10-p_time>=0 and p_lambda>=0 and p_time>=0 @r_1
+p_lambda>=0 and 2-p_lambda>=0 and p_time>=0@r_1
 sting
-p_time>=0
+p_lambda>=0 and 2-p_lambda>=0 and p_time>=0
 non-endscoring
 locations@2
 loc=1
