@@ -1,11 +1,11 @@
 6
 6
-Table@1
+Table@T1
 solver@LP
 bounded_domain
-p_h@0 5
-p_t@0 5
+p_x@0 5
+p_y@0 5
 no_common_invs
 initial_inputs
-p_h@constant@0
-p_t@random@0 2@40
+p_x@random@0 3@60
+p_y@constant@0

@@ -1,13 +1,13 @@
-random-walk-beta-inside-scorey-v4@non_score_recursive
+rdwalk-v3@non_score_recursive
 p_x p_y
 1
-r_2@beta#3 2@0 1
+r_2@beta#3 3@0 1
 truncation@termination
 2
 p_x:=p_x-r_2@p_y:=p_y+1
-p_x>=0 and p_y>=0 @r_2
+p_x-0>=0 @r_2
 p_y:=p_y+1
-p_x>=0 and p_y>=0
+p_x-0>=0
 sting
 p_x>=0
 endscoring
