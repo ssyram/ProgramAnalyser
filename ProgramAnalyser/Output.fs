@@ -359,7 +359,7 @@ module private Impl = begin
                 let printTrunc (trunc : TruncationPathInfo) =
                     propToValidGeConj LossConfirm loopGuard
                     |> function
-                    | [ x ] -> trunc.PrintWithGuard x
+                    | [ x ] -> trunc.PrintWithGuard $ simplifyGeConj x
                     | _     -> IMPOSSIBLE ()
                 in
                 let truncate_paths_info () = fromListGenOutput $ List.map printTrunc truncInfo in
