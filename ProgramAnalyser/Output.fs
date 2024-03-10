@@ -1130,6 +1130,7 @@ type ConfigCtx =
         cfgVarDivM : Map<Variable, uint>
         cfgVarRanges : Map<Variable, Numeric * Numeric>
         cfgSolver : string
+        cfgTable : uint
     }
 
 let private declVarRanges progVars ctx =
@@ -1188,11 +1189,12 @@ let genConfigOutput input =
     [
         toString input.cfgDegOne
         toString input.cfgDegTwo
+        "Table@" + toString input.cfgTable
+        "solver@" + toString input.cfgSolver
         "bounded_domain"
         declVarRanges progVars input
         "no_common_invs"
         "initial_inputs"
         declProgVarInitVal progVars input
-        "solver@" + input.cfgSolver
     ]
     |> fromListGenOutput

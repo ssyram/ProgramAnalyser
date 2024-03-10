@@ -37,6 +37,8 @@ type ArgAnalysisResult = {
     degree2 : int
     /// by default "LP", another option is "SDP"
     solver : string
+    /// by default 1
+    table : int
 }
 
 let inline runGenOutput input =
@@ -60,7 +62,8 @@ let runGenConfig program randVars args =
             cfgDefDivM = uint args.globalDivisionM
             cfgVarDivM = varDivM
             cfgVarRanges = varRanges
-            cfgSolver = args.solver 
+            cfgSolver = args.solver
+            cfgTable = uint args.table 
         }
     in
     genConfigOutput cfgInput
@@ -89,17 +92,6 @@ let inline runParseAnalysis main maybeArgs =
     let maybeConfig = Option.map (runGenConfig program lst) maybeArgs in
     
     (main, maybeConfig)
-
-type SpProgram =
-    | SPAddUniformUnboundedQ1
-    | SPAddUniformUnboundedQ2
-    | SP_CAV_Ex5_Q1
-    | SP_CAV_Ex5_Q2
-    | SP_CAV_Ex7_Q1
-    | SP_CAV_Ex7_Q2
-    | SPGrowingWalkQ1
-    | SPGrowingWalkQ2
-    | SPRdBoxWalk
 
 let runSpAnalysis name =
     match name with
@@ -153,6 +145,7 @@ let defaultArgResult () = {
     degree1 = 6
     degree2 = 6
     solver = "LP"
+    table = 1
 }
 
 let argResultsToAnalysisContext argRes =
@@ -316,6 +309,23 @@ let private parseSolver (str : string) =
     | "-solver:lp" -> Some "LP"
     | "-solver:sdp" -> Some "SDP"
     | _ -> None
+    
+let private parseTab (str : string) =
+    let intVal =
+        if str.StartsWith "-tab:" && str.Length > 5 then getPosIntVal str[5..]
+        elif str.StartsWith "-table:" && str.Length > 7 then getPosIntVal str[7..]
+        else None
+    in
+    flip Option.bind intVal $ fun v -> if v > 3 || v < 1 then None else Some v
+
+// let testParseTab () =
+//     testExamples parseTab [
+//         "-tab:1"
+//         "-tab"
+//         "-tab:"
+//         "-table:2"
+//         "-table:5"
+//     ]
 
 let private parseIntVar (str : string) =
     if str.StartsWith "-int:" && str.Length > 5 then Some $ str[5..]
@@ -351,6 +361,10 @@ let rec private argAnalysis args acc =
     | intVar :: args when Option.isSome $ parseIntVar intVar ->
         Flags.INT_VARS <- Set.add (Option.get $ parseIntVar intVar) Flags.INT_VARS;
         loop args acc
+    | table :: args when Option.isSome $ parseTab table ->
+        loop args {
+            acc with table = Option.get $ parseTab table 
+        }
     | solver :: args when Option.isSome $ parseSolver solver ->
         loop args {
             acc with solver = Option.get $ parseSolver solver 

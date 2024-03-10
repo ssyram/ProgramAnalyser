@@ -58,33 +58,33 @@ where the `<run-time>` could be:
 
 ```
 # Table 1
-dotnet run h-t-r-2-3.program -termination -m:40
-dotnet run h-t-r-2-3-inside-score.program -concentration -m:40
-dotnet run pedestrian-beta.program -direct -solver:SDP
-dotnet run pedestrian-multiple-branches-v3.program -termination -degree:4
-dotnet run pedestrian-multiple-branches-v4.program -termination -degree:4
-dotnet run phylogenetic-model.program -no_truncate -termination -m:40 -Rp_lambda:0~2 -Rp_time:0~10
-dotnet run random-walk-beta-inside-scorey-v1.program -termination
-dotnet run random-walk-beta-inside-scorey-v2.program -termination
-dotnet run random-walk-beta-inside-scorey-v3.program -termination
-dotnet run random-walk-beta-inside-scorey-v4.program -termination
+dotnet run -tab:1 h-t-r-2-3.program -termination -m:40
+dotnet run -tab:1 h-t-r-2-3-inside-score.program -concentration -m:40
+dotnet run -tab:1 pedestrian-beta.program -direct -solver:SDP
+dotnet run -tab:1 pedestrian-multiple-branches-v3.program -termination -degree:4
+dotnet run -tab:1 pedestrian-multiple-branches-v4.program -termination -degree:4
+dotnet run -tab:1 phylogenetic-model.program -no_truncate -termination -m:40 -Rp_lambda:0~2 -Rp_time:0~10
+dotnet run -tab:1 random-walk-beta-inside-scorey-v1.program -termination
+dotnet run -tab:1 random-walk-beta-inside-scorey-v2.program -termination
+dotnet run -tab:1 random-walk-beta-inside-scorey-v3.program -termination
+dotnet run -tab:1 random-walk-beta-inside-scorey-v4.program -termination
 # Table 2
-dotnet run para-estimation-recursive.program -no_truncate -direct -acc 1e-5 -Rp_p:0~1 -Rp_t:0~10 -degree:8
-dotnet run pedestrian-beta-inside-v1.program -direct -acc 1e-4
-dotnet run pedestrian-beta-inside-v2.program -direct -acc 1e-4
-dotnet run pedestrian-beta-inside-v3.program -direct -acc 1e-4
-dotnet run pedestrian-beta-inside-v4.program -direct -acc 1e-4
-dotnet run pedestrian-deviation5.program -direct -acc 1e-4
-dotnet run pedestrian-multiple-branches-v5.program -direct -acc 1e-4
-dotnet run pedestrian.program -direct -acc 1e-4 -m:90 -degree:10 -solver:SDP
+dotnet run -tab:2 para-estimation-recursive.program -no_truncate -direct -acc 1e-5 -Rp_p:0~1 -Rp_t:0~10 -degree:8
+dotnet run -tab:2 pedestrian-beta-inside-v1.program -direct -acc 1e-4
+dotnet run -tab:2 pedestrian-beta-inside-v2.program -direct -acc 1e-4
+dotnet run -tab:2 pedestrian-beta-inside-v3.program -direct -acc 1e-4
+dotnet run -tab:2 pedestrian-beta-inside-v4.program -direct -acc 1e-4
+dotnet run -tab:2 pedestrian-deviation5.program -direct -acc 1e-4
+dotnet run -tab:2 pedestrian-multiple-branches-v5.program -direct -acc 1e-4
+dotnet run -tab:2 pedestrian.program -direct -acc 1e-4 -m:90 -degree:10 -solver:SDP
 # Table 3
-dotnet run add-uniform-unbounded-Q1.program -no_truncate -direct -Rp_x:0~1 -Rp_y:0~1 -int:p_y
-dotnet run add-uniform-unbounded-Q2.program -no_truncate -direct -Rp_x:0~1 -Rp_y:0~1 -int:p_y
-dotnet run cav-example-5-Q1.program -no_truncate -direct -m:10 -Rp_money:10~20 -Rp_i:0~20
-dotnet run cav-example-5-Q2.program -no_truncate -direct -m:10 -Rp_money:10~20 -Rp_i:0~20
-dotnet run cav-example-7-Q1.program -no_truncate -direct -Rp_count:0~30 -Rp_i:0~4
-dotnet run cav-example-7-Q2.program -no_truncate -direct -Rp_count:0~30 -Rp_i:0~4
-dotnet run growing-walk-Q1.program -no_truncate -direct -acc 1e-4 -Rp_t:0~0.1 -Rp_x:1~10 -degree:8
-dotnet run growing-walk-Q2.program -no_truncate -direct -acc 1e-4 -Rp_t:0~0.1 -Rp_x:1~10 -degree:8
-dotnet run random-box-walk-Q1.program -no_truncate -direct -Rp_x:-0.8~0.8 -Rp_t:0~10 -degree:4
+dotnet run -tab:3 add-uniform-unbounded-Q1.program -no_truncate -direct -Rp_x:0~1 -Rp_y:0~1 -int:p_y
+dotnet run -tab:3 add-uniform-unbounded-Q2.program -no_truncate -direct -Rp_x:0~1 -Rp_y:0~1 -int:p_y
+dotnet run -tab:3 cav-example-5-Q1.program -no_truncate -direct -m:10 -Rp_money:10~20 -Rp_i:0~20
+dotnet run -tab:3 cav-example-5-Q2.program -no_truncate -direct -m:10 -Rp_money:10~20 -Rp_i:0~20
+dotnet run -tab:3 cav-example-7-Q1.program -no_truncate -direct -Rp_count:0~30 -Rp_i:0~4
+dotnet run -tab:3 cav-example-7-Q2.program -no_truncate -direct -Rp_count:0~30 -Rp_i:0~4
+dotnet run -tab:3 growing-walk-Q1.program -no_truncate -direct -acc 1e-4 -Rp_t:0~0.1 -Rp_x:1~10 -degree:8
+dotnet run -tab:3 growing-walk-Q2.program -no_truncate -direct -acc 1e-4 -Rp_t:0~0.1 -Rp_x:1~10 -degree:8
+dotnet run -tab:3 random-box-walk-Q1.program -no_truncate -direct -Rp_x:-0.8~0.8 -Rp_t:0~10 -degree:4
 ```

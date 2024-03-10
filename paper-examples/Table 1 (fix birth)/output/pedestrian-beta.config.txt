@@ -1,5 +1,7 @@
 6
 6
+Table@1
+solver@SDP
 bounded_domain
 p_dis@0 5
 p_pos@0 5
@@ -7,4 +9,3 @@ no_common_invs
 initial_inputs
 p_pos@random@0 3@60
 p_dis@constant@0
-solver@SDP

@@ -1,5 +1,7 @@
 8
 8
+Table@2
+solver@LP
 bounded_domain
 p_p@0 1
 p_t@0 10
@@ -7,4 +9,3 @@ no_common_invs
 initial_inputs
 p_p@random@0 1@60
 p_t@constant@0
-solver@LP

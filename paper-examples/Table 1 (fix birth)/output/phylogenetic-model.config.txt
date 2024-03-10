@@ -1,5 +1,7 @@
 6
 6
+Table@1
+solver@LP
 bounded_domain
 p_lambda@0 2
 p_time@0 10
@@ -7,4 +9,3 @@ no_common_invs
 initial_inputs
 p_lambda@random@0 2@40
 p_time@constant@10
-solver@LP
