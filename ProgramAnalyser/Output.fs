@@ -59,6 +59,11 @@ type ProgramAnalysisInput = {
     endLoopScoreAccuracy : string option
 }
 
+let getPreAssnProgVars program =
+    let getVar = function | STAssn (v, _) -> v | _ -> IMPOSSIBLE () in
+    program.assnLst
+    |> List.map getVar
+
 // do not warn the initial indentation issue within `Impl`
 #nowarn "58"
 module private Impl = begin
@@ -196,7 +201,7 @@ module private Impl = begin
         /// use this rather than the above one
         let program = input.program
         /// the truly used program variables and random variables
-        let programVars, randomVars =
+        let _programVars, randomVars =
             let oriRvMap = Map.ofSeq input.randomVars in
             let folder (set, map) var =
                 match Map.tryFind var oriRvMap with
@@ -244,8 +249,9 @@ module private Impl = begin
         //     | [ x ] -> x
         //     | _     -> IMPOSSIBLE ()
             
-        let list_of_all_non_random_program_variables =
-            Set.toSeq programVars
+        let list_of_pre_assn_program_vars =
+            getPreAssnProgVars program
+            // Set.toSeq programVars
             |> Seq.map toString
             |> String.concat " "
             
@@ -285,7 +291,7 @@ module private Impl = begin
         
         let loopAndInvConjCmpList = propToSingleConjCmpList $ And [ loopGuard; loopInvariant ]
         
-        let loopAndInvGeConj = simplifyGeConj $ conjCmpsToGeConj LossConfirm loopAndInvConjCmpList
+        // let loopAndInvGeConj = simplifyGeConj $ conjCmpsToGeConj LossConfirm loopAndInvConjCmpList
         
         let termination_type = toString terminationType
         
@@ -350,7 +356,12 @@ module private Impl = begin
                     |> List.map mapper
                 in
                 let number_of_paths = toString $ List.length truncInfo in
-                let printTrunc (trunc : TruncationPathInfo) = trunc.PrintWithGuard loopAndInvGeConj in
+                let printTrunc (trunc : TruncationPathInfo) =
+                    propToValidGeConj LossConfirm loopGuard
+                    |> function
+                    | [ x ] -> trunc.PrintWithGuard x
+                    | _     -> IMPOSSIBLE ()
+                in
                 let truncate_paths_info () = fromListGenOutput $ List.map printTrunc truncInfo in
                 [
                     number_of_paths
@@ -1101,7 +1112,7 @@ module private Impl = begin
         member public x.GenerateOutput () =
             [
                 program_name @ program_type
-                list_of_all_non_random_program_variables
+                list_of_pre_assn_program_vars
                 number_of_random_variables
                 random_variable_type_declarations ()
                 truncation_or_not @ termination_type
@@ -1142,8 +1153,7 @@ let private declVarRanges progVars ctx =
         in
         toString var + "@" + min.ToString "float" + " " + max.ToString "float"
     in
-    Set.toList progVars
-    |> List.map declAVar
+    List.map declAVar progVars
     |> fromListGenOutput
     
 let printDistRange (Distribution (distTy, arg)) =
@@ -1185,16 +1195,16 @@ let private declProgVarInitVal usedVars ctx =
     |> fromListGenOutput
 
 let genConfigOutput input =
-    let progVars = fst $ getBothVars input.cfgProgram input.cfgRandVars in
+    let progVars = getPreAssnProgVars input.cfgProgram in
     [
         toString input.cfgDegOne
         toString input.cfgDegTwo
-        "Table@" + toString input.cfgTable
+        "Table@T" + toString input.cfgTable
         "solver@" + toString input.cfgSolver
         "bounded_domain"
         declVarRanges progVars input
         "no_common_invs"
         "initial_inputs"
-        declProgVarInitVal progVars input
+        declProgVarInitVal (Set.ofList progVars) input
     ]
     |> fromListGenOutput

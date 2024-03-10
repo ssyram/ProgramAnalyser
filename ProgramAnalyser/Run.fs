@@ -107,8 +107,8 @@ let runAllAnalysis main maybeArgs =
 let inline runPrintingOut (mainInput, args) (outPath : string option) =
     let pPath = mainInput.programPath in
     let fileName = Path.GetFileNameWithoutExtension pPath in
-    let mainFileName = fileName + ".main.txt" in
-    let configFileName = fileName + ".config.txt" in
+    let mainFileName = fileName + "-input.txt" in
+    let configFileName = fileName + "-config.txt" in
     let (outMainPath, outConfigPath) =
         let path = match outPath with
                    | Some path -> path
