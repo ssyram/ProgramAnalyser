@@ -2,7 +2,7 @@
 
 cd "Table 1 (fix birth)/parser-inputs1/"
 
-program="dotnet ../../../ProgramAnalyser/bin/Debug/net8.0/ProgramAnalyser.dll -O ../pt-inputs1 -tab:1"
+program="dotnet ../../../ProgramAnalyser/bin/Debug/net8.0/ProgramAnalyser.dll -O ../output -tab:1"
 
 $program race-v1.program -termination -m:40
 $program race-v2.program -concentration -m:40
