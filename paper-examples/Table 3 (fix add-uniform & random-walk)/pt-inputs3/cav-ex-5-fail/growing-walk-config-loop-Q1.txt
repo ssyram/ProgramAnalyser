@@ -1,0 +1,13 @@
+8
+8
+Table@T3
+solver@LP
+bounded_domain
+p_t@0 0.1
+p_x@1 10
+no_common_invs
+initial_inputs
+p_t@constant@0
+p_x@constant@1
+
+ 

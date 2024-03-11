@@ -1,5 +1,5 @@
 random-box-walk-Q1@non_score_recursive
-p_t p_x
+p_x p_t 
 2
 r_1@CU@0 0.5
 r_2@CU@0.5 1

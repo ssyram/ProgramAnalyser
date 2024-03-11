@@ -1,5 +1,5 @@
 growing-walk-Q1@non_score_recursive
-p_t p_x
+p_x p_t
 1
 r_1@CU@0 1
 non-truncation@direct

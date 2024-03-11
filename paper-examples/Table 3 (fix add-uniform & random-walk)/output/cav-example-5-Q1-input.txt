@@ -1,5 +1,5 @@
 cav-example-5-Q1@non_score_recursive
-p_i p_money
+p_money p_i
 1
 r_1@CU@5 10
 non-truncation@direct
@@ -173,7 +173,7 @@ abnormal
 1
 r_1@expectation@p_money-10 10
 sting
-p_i-9>=0 and p_money-10>=0
+p_i-10>=0 and p_money-10>=0
 next_locs=0#0#0#0#0#0#0
 normal
 normal

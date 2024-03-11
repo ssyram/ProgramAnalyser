@@ -1,0 +1,446 @@
+cav-ex5-loop@non_weight_recursive
+p_m p_i
+4
+r_1@CU@2.5 5
+r_2@CU@0.5 1
+r_3@CU@3.5 7
+r_4@CU@5 10
+non-truncation@direct
+no-endscoring
+locations@2
+loc=1
+probs=0.94737*0.33333*0.5 0.94737*0.33333*0.5 0.94737*(1-0.33333)*0.5*0.33333 0.94737*(1-0.33333)*0.5*(1-0.33333) 0.94737*(1-0.33333)*0.5*0.66667 0.94737*(1-0.33333)*0.5*(1-0.66667) 1-0.94737
+2
+assignment#p_m:=p_m+r_1
+assignment#p_i:=p_i+1
+2
+assignment#p_m:=p_m+r_2
+assignment#p_i:=p_i+1
+2
+assignment#p_m:=p_m+r_1
+assignment#p_i:=p_i+1
+2
+assignment#p_m:=p_m+r_2
+assignment#p_i:=p_i+1
+2
+assignment#p_m:=p_m-r_3
+assignment#p_i:=p_i+1
+2
+assignment#p_m:=p_m-r_4
+assignment#p_i:=p_i+1
+2
+assignment#p_m:=p_m-r_4
+assignment#p_i:=p_i+1
+10
+sting
+p_m-20>=0 and p_i>=0 and 20-p_i>=0
+next_locs=1#1#1#1#1#1#1
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_3@expectation
+abnormal
+1
+r_4@expectation
+abnormal
+1
+r_4@expectation
+sting
+p_m-17>=0 and 20-p_m>=0 and p_i>=0 and 19-p_i>=0
+next_locs=1#1#1#1#1#1 -10#1 -10
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_3@expectation
+abnormal
+1
+r_4@expectation@5 p_m-10
+abnormal
+1
+r_4@expectation@p_m-10 10
+abnormal
+1
+r_4@expectation@5 p_m-10
+abnormal
+1
+r_4@expectation@p_m-10 10
+sting
+p_m-17>=0 and 20-p_m>=0 and p_i-19>=0 and 20-p_i>=0
+next_locs=1#1#1#1#1#1#1
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_3@expectation
+abnormal
+1
+r_4@expectation@5 p_m-10
+abnormal
+1
+r_4@expectation@5 p_m-10
+sting
+p_m-15>=0 and 17-p_m>=0 and p_i>=0 and 19-p_i>=0
+next_locs=1#1#1#1#1 -10#1 -10#1 -10
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_3@expectation@3.5 p_m-10
+abnormal
+1
+r_3@expectation@p_m-10 7
+abnormal
+1
+r_4@expectation@5 p_m-10
+abnormal
+1
+r_4@expectation@p_m-10 10
+abnormal
+1
+r_4@expectation@5 p_m-10
+abnormal
+1
+r_4@expectation@p_m-10 10
+sting
+p_m-15>=0 and 17-p_m>=0 and p_i-19>=0 and 20-p_i>=0
+next_locs=1#1#1#1#1#1#1
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_3@expectation@3.5 p_m-10
+abnormal
+1
+r_4@expectation@5 p_m-10
+abnormal
+1
+r_4@expectation@5 p_m-10
+sting
+p_m-13.5>=0 and 15-p_m>=0 and p_i>=0 and 19-p_i>=0
+next_locs=1#1#1#1#1 -10#-10#-10
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_3@expectation@3.5 p_m-10
+abnormal
+1
+r_3@expectation@p_m-10 7
+normal
+normal
+sting
+p_m-13.5>=0 and 15-p_m>=0 and p_i-19>=0 and 20-p_i>=0
+next_locs=1#1#1#1#1#0#0
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_3@expectation@3.5 p_m-10
+normal
+normal
+sting
+p_m-10>=0 and 13.5-p_m>=0 and p_i>=0 and 19-p_i>=0
+next_locs=1#1#1#1#-10#-10#-10
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+normal
+normal
+normal
+sting
+p_m-10>=0 and 13.5-p_m>=0 and p_i-19>=0 and 20-p_i>=0
+next_locs=1#1#1#1#0#0#0
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+normal
+normal
+normal
+sting
+p_m-10>=0 and p_i-20>=0 and 21-p_i>=0
+next_locs=0#0#0#0#0#0#0
+normal
+normal
+normal
+normal
+normal
+normal
+normal
+out
+
+
+
+
+
+10
+sting
+p_m-20>=0 and p_i>=0 and 9-p_i>=0
+next_locs=1#1#1#1#1#1#1
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_3@expectation
+abnormal
+1
+r_4@expectation
+abnormal
+1
+r_4@expectation
+sting
+p_m>=20 and p_i-10>=0 and 10-p_i>=0
+next_locs=0#0#0#0#0#0#0
+normal
+normal
+normal
+normal
+normal
+normal
+normal
+sting
+p_m-17>=0 and 20-p_m>=0 and p_i>=0 and 9-p_i>=0
+next_locs=1#1#1#1#1#1 -10#1 -10
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_3@expectation
+abnormal
+1
+r_4@expectation@5 p_m-10
+abnormal
+1
+r_4@expectation@p_m-10 10
+abnormal
+1
+r_4@expectation@5 p_m-10
+abnormal
+1
+r_4@expectation@p_m-10 10
+sting
+p_m-17>=0 20-p_m>=0 and p_i-10>=0 and 10-p_i>=0
+next_locs=0#0#0#0#0#0#0
+normal
+normal
+normal
+normal
+normal
+normal
+normal
+sting
+p_m-15>=0 and 17-p_m>=0 and p_i>=0 and 9-p_i>=0
+next_locs=1#1#1#1#1 -10#1 -10#1 -10
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_3@expectation@3.5 p_m-10
+abnormal
+1
+r_3@expectation@p_m-10 7
+abnormal
+1
+r_4@expectation@5 p_m-10
+abnormal
+1
+r_4@expectation@p_m-10 10
+abnormal
+1
+r_4@expectation@5 p_m-10
+abnormal
+1
+r_4@expectation@p_m-10 10
+sting
+p_m-15>=0 and 17-p_m>=0 and p_i-10>=0 and 10-p_i>=0
+next_locs=0#0#0#0#0#0#0
+normal
+normal
+normal
+normal
+normal
+normal
+normal
+sting
+p_m-13.5>=0 and 17-p_m>=0 and p_i>=0 and 9-p_i>=0
+next_locs=1#1#1#1#1 -10#-10#-10
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_3@expectation@5 p_m-10
+abnormal
+1
+r_3@expectation@p_m-10 7
+normal
+normal
+sting
+p_m-13.5>=0 and 17-p_m>=0 and p_i-10>=0 and 10-p_i>=0
+next_locs=0#0#0#0#0#0#0
+normal
+normal
+normal
+normal
+normal
+normal
+normal
+sting
+p_m-10>=0 and 13.5-p_m>=0 and p_i>=0 and 9-p_i>=0
+next_locs=1#1#1#1#-10#-10#-10
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_2@expectation
+normal
+normal
+normal
+sting
+p_m-10>=0 and 13.5-p_m>=0 and p_i-10>=0 and 10-p_i>=0
+next_locs=0#0#0#0#0#0#0
+normal
+normal
+normal
+normal
+normal
+normal
+normal
+out
+
+ 

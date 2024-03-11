@@ -1,6 +1,6 @@
 6
 6
-Table@3
+Table@T3
 solver@LP
 bounded_domain
 p_x@0 1
