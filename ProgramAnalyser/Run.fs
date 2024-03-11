@@ -94,9 +94,13 @@ let inline runParseAnalysis main maybeArgs =
     (main, maybeConfig)
 
 let runSpAnalysis name =
-    match name with
-    | "$some$name" -> Some ("main", Some "cfg")
-    | _            -> None
+    let spNames =
+        Set.ofList
+            [
+                ""
+            ]
+    in
+    if spNames.Contains name then Some $ outSp name else None
 
 let runAllAnalysis main maybeArgs =
     let fileName = Path.GetFileNameWithoutExtension main.programPath in

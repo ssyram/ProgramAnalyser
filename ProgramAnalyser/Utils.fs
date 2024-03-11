@@ -1,8 +1,11 @@
 module ProgramAnalyser.Utils
 
+open System.IO
+open Newtonsoft.Json
 open System.Collections
 open System.Collections.Generic
-open System.Linq
+open System.Security.Cryptography
+open System.Text
 open FSharp.Text.Lexing
 open Global
 open MathNet.Numerics.Distributions
@@ -383,3 +386,106 @@ let rec listMayCartesian lst =
         listMayCartesian rest
         |> List.allPairs hLst
         |> List.map List.Cons
+
+let encryptStringToBytes_Aes (plainText: string, key: byte[], iv: byte[]) : byte[] =
+    use aesAlg = Aes.Create() in
+    aesAlg.Key <- key;
+    aesAlg.IV <- iv;
+    let encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV) in
+    use msEncrypt = new MemoryStream() in
+    let csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write) in
+    let swEncrypt = new StreamWriter(csEncrypt) in
+    swEncrypt.Write(plainText);
+    swEncrypt.Close();
+    csEncrypt.Close();
+    msEncrypt.ToArray()
+
+let encryptFiles
+        (filePaths : string list)
+        (encryptionInfoFilePath : string)
+        (outPath : string) : unit =
+    let readContents path = File.ReadAllText(path) in
+    let namesAndContents =
+        filePaths
+        |> List.map (fun path -> Path.GetFileNameWithoutExtension(path), readContents(path)) in
+    let jsonString = JsonConvert.SerializeObject(namesAndContents) in
+
+    // Generate a random key and IV for AES encryption
+    let aes = Aes.Create() in
+    let key = aes.Key in
+    let iv = aes.IV in
+    let encrypted = encryptStringToBytes_Aes(jsonString, key, iv) in
+    File.WriteAllBytes(outPath, encrypted);
+
+    // Save the encryption key and IV
+    let encryptionInfo = JsonConvert.SerializeObject((key, iv)) in
+    File.WriteAllText(encryptionInfoFilePath, encryptionInfo)
+
+let decryptStringFromBytes_Aes (cipherText: byte[], key: byte[], iv: byte[]) : string =
+    use aesAlg = Aes.Create() in
+    aesAlg.Key <- key;
+    aesAlg.IV <- iv;
+    let decryptor = aesAlg.CreateDecryptor(aesAlg.Key, aesAlg.IV) in
+    use msDecrypt = new MemoryStream(cipherText) in
+    use csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read) in
+    use srDecrypt = new StreamReader(csDecrypt) in
+    srDecrypt.ReadToEnd()
+
+let decryptAll 
+        (encryptionInfoFilePath : string)
+        (encryptedFilePath : string)
+        : (string * string) list =
+    let encrypted = File.ReadAllBytes(encryptedFilePath) in
+    let encryptionInfoJson = File.ReadAllText(encryptionInfoFilePath) in
+    let (key, iv) = JsonConvert.DeserializeObject<byte[]*byte[]>(encryptionInfoJson) in
+
+    let decryptedJson = decryptStringFromBytes_Aes(encrypted, key, iv) in
+    JsonConvert.DeserializeObject<(string*string) list>(decryptedJson) 
+
+let decryptForFiles
+        (names : string list)
+        (encryptionInfoFilePath : string)
+        (encryptedFilePath : string)
+        : (string * string) list =
+    let names = Set.ofList names in
+    let allFiles = decryptAll encryptionInfoFilePath encryptedFilePath in
+    allFiles |> List.filter (fun (name, _) -> Set.contains name names)
+
+
+// let testEncrypt () =
+//     let filePath = "../../../../paper-examples/Table 3 (fix add-uniform & random-walk)/parser-inputs3/cav-example-5-Q1.program" in
+//     encryptFiles
+//         [ filePath ]
+//         "../../../../enc.txt"
+//         "../../../../int.fl"
+//         
+// let testDecrypt () =
+//     decryptForFiles
+//         [ "cav-example-5-Q1.program" ]
+//         "../../../../enc.txt"
+//         "../../../../int.fl"
+//     |> List.iter println
+
+let encryptRequired () =
+    let enc, intFl = Flags.ENC_PATHS in
+    let dirPath = "../../../../enc" in
+    let paths = Seq.toList $ Directory.EnumerateFiles(dirPath, "*", SearchOption.AllDirectories) in
+    encryptFiles paths enc intFl;
+    println "Enc Done."
+
+let getDecFile name =
+    let enc, intFl = Flags.ENC_PATHS in
+    let allNames () =
+        decryptAll enc intFl
+        |> List.map fst
+        |> List.map (fun x -> $"\"{x}\"")
+        |> String.concat ", "
+    match decryptForFiles [ name ] enc intFl with
+    | [ (_, content) ] -> content
+    | []               -> failwith $ $"Name \"{name}\" not found, all names: " + allNames ()
+    | _                -> IMPOSSIBLE ()
+
+let testGetDecFile () =
+    List.iter (println << getDecFile) [
+        "cav-ex5-config-loop-Q1"
+    ]

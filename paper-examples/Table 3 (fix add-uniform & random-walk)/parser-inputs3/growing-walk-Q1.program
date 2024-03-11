@@ -1,5 +1,5 @@
-p_x:=1;
 p_t:=0;
+p_x:=1;
 
 [p_x>=1 and p_t>=0]
 while true do
