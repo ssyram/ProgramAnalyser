@@ -1,90 +1,46 @@
-# ProgramAnalyser
-The program analyser for the experiments in "Static Analysis of Posterior Inference in Bayesian Probabilistic Programming".
+# Program Analyser
+The Program Analyser is used for experiments in "Static Analysis of Posterior Inference in Bayesian Probabilistic Programming".
 
 ## Prerequisite
 
-Install .NET, the version used in this project is .NET 6.
+To use this analyser, install .NET version 6, as it is the version used in this project. The .NET 8.0 also works.
 
-> https://dotnet.microsoft.com/en-us/download/dotnet/6.0
+> [Download .NET 6](https://dotnet.microsoft.com/en-us/download/dotnet/6.0)
 
-## Usage 
+## Usage
 
-### Use `dotnet`
-Assume `pwd` is in the directory with the `.fsproj` file, that is, 
-use `cd dotnet runAnalyser` first when the terminal is at the current directory:
+### Using `dotnet`
 
-> dotnet run <file-path> < option >*
+To run the analyser, ensure the current working directory (`pwd`) is where the `.fsproj` file is located. If not, navigate to the appropriate directory using `cd dotnet runAnalyser` before proceeding.
 
-### Build in A Single File
+To execute, use:
 
-1. Build a single file by:
+> dotnet run <file-path> <option>*
+
+### Building as a Single File
+
+1. To build the analyser as a single file, execute:
 
 > dotnet publish -r <run-time> -p:PublishSingleFile=true --self-contained true
 
-where the `<run-time>` could be:
-- Windows: win-x64, win-x86, win-arm, win-arm64.
-- Linux: linux-x64, linux-musl-x64 (for Alpine), linux-arm, linux-arm64.
-- macOS: osx-x64, osx-arm64 (for M1 Macs and later).
+Choose `<run-time>` from the following options:
+- For Windows: `win-x64`, `win-x86`, `win-arm`, `win-arm64`.
+- For Linux: `linux-x64`, `linux-musl-x64` (Alpine), `linux-arm`, `linux-arm64`.
+- For macOS: `osx-x64`, `osx-arm64` (M1 Macs and later).
 
-2. Run the file:
+2. After building, run the file with:
 
-> dotnet run <file-path> < option >*
+> dotnet run <file-path> <option>*
 
-### Options:
+### Options
 
-- **`<file-path>`** : The path to the `.program` file. This is a required parameter.
-
-- **`-O <output-path>`** : Specify the output path. Otherwise it will be the same as the `<program-path>` with extension changing to ".txt".
-
-- **`-accuracy <accuracy-number>`** or **`-acc <accuracy-number>`** : Set the desired accuracy level for end-loop scores with a numeric value (with space).
-
-- **`-termination`** : Use the 'termination' termination type. This is the default.
-
-- **`-direct`** : Use the 'direct' termination type.
-
-- **`-concentration`** : Use the 'concentration' termination type.
-
-- **`-truncate`** or **`-truncation`** : Enables truncation in the analysis (enabled by default).
-
-- **`-no-truncation`** or **`-non-truncate`** : Run the analysis without truncation.
-
-- **`-R<name>:<min>~<max>`**: Specify the range of a given variable in the program (no space).
-
-- **`-m:<number>`**: Specify the division number `m` as in the paper (no space).
-
-- **`-degree:<number>`**: Specify the degree number `d` as in the paper (no space).
-
-## Default Example Configurations
-
-```
-# Table 1
-dotnet run -tab:1 h-t-r-2-3.program -termination -m:40
-dotnet run -tab:1 h-t-r-2-3-inside-score.program -concentration -m:40
-dotnet run -tab:1 pedestrian-beta.program -direct -solver:SDP
-dotnet run -tab:1 pedestrian-multiple-branches-v3.program -termination -degree:4
-dotnet run -tab:1 pedestrian-multiple-branches-v4.program -termination -degree:4
-dotnet run -tab:1 phylogenetic-model.program -no_truncate -termination -m:40 -Rp_lambda:0~2 -Rp_time:0~10
-dotnet run -tab:1 random-walk-beta-inside-scorey-v1.program -termination
-dotnet run -tab:1 random-walk-beta-inside-scorey-v2.program -termination
-dotnet run -tab:1 random-walk-beta-inside-scorey-v3.program -termination
-dotnet run -tab:1 random-walk-beta-inside-scorey-v4.program -termination
-# Table 2
-dotnet run -tab:2 para-estimation-recursive.program -no_truncate -direct -acc 1e-5 -Rp_p:0~1 -Rp_t:0~10 -degree:8
-dotnet run -tab:2 pedestrian-beta-inside-v1.program -direct -acc 1e-4
-dotnet run -tab:2 pedestrian-beta-inside-v2.program -direct -acc 1e-4
-dotnet run -tab:2 pedestrian-beta-inside-v3.program -direct -acc 1e-4
-dotnet run -tab:2 pedestrian-beta-inside-v4.program -direct -acc 1e-4
-dotnet run -tab:2 pedestrian-deviation5.program -direct -acc 1e-4
-dotnet run -tab:2 pedestrian-multiple-branches-v5.program -direct -acc 1e-4
-dotnet run -tab:2 pedestrian.program -direct -acc 1e-4 -m:90 -degree:10 -solver:SDP
-# Table 3
-dotnet run -tab:3 add-uniform-unbounded-Q1.program -no_truncate -direct -Rp_x:0~1 -Rp_y:0~1 -int:p_y
-dotnet run -tab:3 add-uniform-unbounded-Q2.program -no_truncate -direct -Rp_x:0~1 -Rp_y:0~1 -int:p_y
-dotnet run -tab:3 cav-example-5-Q1.program -no_truncate -direct -m:10 -Rp_money:10~20 -Rp_i:0~20
-dotnet run -tab:3 cav-example-5-Q2.program -no_truncate -direct -m:10 -Rp_money:10~20 -Rp_i:0~20
-dotnet run -tab:3 cav-example-7-Q1.program -no_truncate -direct -Rp_count:0~30 -Rp_i:0~4
-dotnet run -tab:3 cav-example-7-Q2.program -no_truncate -direct -Rp_count:0~30 -Rp_i:0~4
-dotnet run -tab:3 growing-walk-Q1.program -no_truncate -direct -acc 1e-4 -Rp_t:0~0.1 -Rp_x:1~10 -degree:8
-dotnet run -tab:3 growing-walk-Q2.program -no_truncate -direct -acc 1e-4 -Rp_t:0~0.1 -Rp_x:1~10 -degree:8
-dotnet run -tab:3 random-box-walk-Q1.program -no_truncate -direct -Rp_x:-0.8~0.8 -Rp_t:0~10 -degree:4
-```
+- **`-O <output-path>`**: Set the output path. Defaults to the same path as `<program-path>` with a ".txt" extension.
+- **`-accuracy <accuracy-number>`** or **`-acc <accuracy-number>`**: Set the accuracy level for end-loop scores. Provide a numeric value.
+- **`-termination`**: Use the 'termination' termination type (default setting).
+- **`-direct`**: Use the 'direct' termination type.
+- **`-concentration`**: Use the 'concentration' termination type.
+- **`-truncate`** or **`-truncation`**: Enable truncation in the analysis (enabled by default).
+- **`-no-truncation`** or **`-non-truncate`**: Disable truncation.
+- **`-R<name>:<min>~<max>`**: Define the range for a variable in the program. Format without spaces.
+- **`-m:<number>`**: Specify the division number `m` as described in the paper. Format without spaces.
+- **`-degree:<number>`**: Set the degree number `d` as discussed in the paper. Format without spaces.

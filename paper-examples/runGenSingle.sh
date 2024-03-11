@@ -38,10 +38,10 @@ case "$file_name" in
     "pd.program")
         $program "$input_file" -tab:2 -direct -acc 1e-4 -m:60 -degree:10 -solver:SDP
         ;;
-    "add-uniform-unbounded-Q1.program"|"add-uniform-unbounded-Q2.program")
+    "add-uni-Q1.program"|"add-uni-Q2.program")
         $program "$input_file" -tab:3 -no_truncate -direct -Rp_x:0~1 -Rp_y:0~1 -int:p_y
         ;;
-    "cav-example-5-Q1.program"|"cav-example-5-Q2.program"|"cav-example-7-Q1.program"|"cav-example-7-Q2.program")
+    "cav-ex-5-Q1.program"|"cav-ex-5-Q2.program"|"cav-ex-7-Q1.program"|"cav-ex-7-Q2.program")
         $program "$input_file" -tab:3 -no_truncate -direct -m:10 -Rp_money:10~20 -Rp_i:0~20
         ;;
     "growing-walk-Q1.program"|"growing-walk-Q2.program")
