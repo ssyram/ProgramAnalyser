@@ -6,7 +6,7 @@ non-truncation@direct
 endscoring
 1@-1
 non-polynomial
-normal@3 1@p_t@acc=1e-4@min=0 max=0.2
+normal@3 1@p_t@acc=1e-4@min=0 max=0.1
 p_t
 locations@2
 loc=1

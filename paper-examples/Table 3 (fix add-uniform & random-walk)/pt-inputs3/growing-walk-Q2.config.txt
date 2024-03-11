@@ -9,5 +9,3 @@ no_common_invs
 initial_inputs
 p_t@constant@0
 p_x@constant@1
-
-

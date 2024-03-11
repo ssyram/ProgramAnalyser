@@ -487,5 +487,5 @@ let getDecFile name =
 
 let testGetDecFile () =
     List.iter (println << getDecFile) [
-        "cav-ex5-config-loop-Q1"
+        "5-1-ipt"
     ]
