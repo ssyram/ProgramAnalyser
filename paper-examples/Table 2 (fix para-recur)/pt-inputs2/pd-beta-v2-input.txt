@@ -1,0 +1,49 @@
+pedestrian-beta-v2@non_score_recursive
+p_x p_y
+1
+r_2@beta#2 3@0 1
+truncation@direct
+2
+p_x:=p_x-r_2@p_y:=p_y+r_2
+p_x>=0 and p_y>=0 @r_2
+p_x:=p_x+r_2@p_y:=p_y+r_2
+p_x>=0 and p_y>=0 @r_2
+sting
+p_x>=0
+endscoring
+1@-1
+non-polynomial
+normal@2 5@p_y@acc=1e-4
+p_y+r_2@r_2@dependent
+locations@2
+loc=1
+probs=0.5 0.5
+2
+assignment#p_x:=p_x-r_2
+assignment#p_y:=p_y+r_2
+2
+assignment#p_x:=p_x+r_2
+assignment#p_y:=p_y+r_2
+2
+sting
+p_x-1>=0 and p_y>=0
+next_locs=1#1
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_2@expectation
+sting
+1-p_x>=0 and p_x>=0 and p_y>=0
+next_locs=1 -1#1
+abnormal
+1
+r_2@expectation@0 p_x
+abnormal
+1
+r_2@expectation@p_x 1@p_x
+abnormal
+1
+r_2@expectation
+out

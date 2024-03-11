@@ -1,0 +1,53 @@
+para-estimation-recursive@non_score_recursive
+p_p p_t
+1
+r_1@CU@0 1
+truncation@direct
+aaa
+bbb
+endscoring
+1@-1
+non-polynomial
+normal@1 1@p_t@acc=1e-5
+p_t
+locations@2
+loc=1
+probs=0.5 0.5*p_p 0.5-0.5*p_p
+1
+assignment#p_t:=p_t
+1
+assignment#p_t:=p_t+r_1
+1
+assignment#p_t:=p_t-r_1
+3
+sting
+1-p_p>=0 and 6-p_t>=0 and p_p>=0 and 4+p_t>=0
+next_locs=-1#1#1
+normal
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_1@expectation
+sting
+1-p_p>=0 and p_p>=0 and p_t-6>=0
+next_locs=0#1#1
+normal
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_1@expectation
+sting
+1-p_p>=0 and (-4)-p_t>=0 and p_p>=0
+next_locs=0#1#1
+normal
+abnormal
+1
+r_1@expectation
+abnormal
+1
+r_1@expectation
+out

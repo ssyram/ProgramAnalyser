@@ -1,0 +1,49 @@
+pedestrian-LD@non_score_recursive
+p_pos p_dis
+1
+r_2@CU@0 1
+truncation@direct
+2
+p_pos:=p_pos-r_2@p_dis:=p_dis+r_2
+p_dis>=0 and p_pos>=0 @r_2
+p_pos:=p_pos+r_2@p_dis:=p_dis+r_2
+p_dis>=0 and p_pos>=0 @r_2
+sting
+p_pos>=0
+endscoring
+1@-1
+non-polynomial
+normal@1.1 5@p_dis@acc=1e-4
+p_dis+r_2@r_2@dependent
+locations@2
+loc=1
+probs=0.5 0.5
+2
+assignment#p_pos:=p_pos-r_2
+assignment#p_dis:=p_dis+r_2
+2
+assignment#p_pos:=p_pos+r_2
+assignment#p_dis:=p_dis+r_2
+2
+sting
+p_dis>=0 and p_pos-1>=0
+next_locs=1#1
+abnormal
+1
+r_2@expectation
+abnormal
+1
+r_2@expectation
+sting
+1-p_pos>=0 and p_dis>=0 and p_pos>=0
+next_locs=1 -1#1
+abnormal
+1
+r_2@expectation@0 p_pos
+abnormal
+1
+r_2@expectation@p_pos 1@p_pos
+abnormal
+1
+r_2@expectation
+out
