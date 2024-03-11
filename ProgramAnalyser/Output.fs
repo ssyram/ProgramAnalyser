@@ -214,6 +214,12 @@ module private Impl = begin
         | "pdld"       -> "pedestrian-LD"
         | "pd"         -> "pedestrian"
         | "pdmb-v5"    -> "pedestrian-multiple-branches-v5"
+        | "add-uni-Q1" -> "add-uniform-unbounded-Q1"
+        | "add-uni-Q2" -> "add-uniform-unbounded-Q2"
+        | "cav-ex-5-Q1" -> "cav-example-5-Q1"
+        | "cav-ex-5-Q2" -> "cav-example-5-Q2"
+        | "cav-ex-7-Q1" -> "cav-example-7-Q1"
+        | "cav-ex-7-Q2" -> "cav-example-7-loop"
         | _otherwise   -> partialName
     
     /// to create a local context that captures the local information within a type
