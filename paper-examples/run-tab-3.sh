@@ -2,7 +2,7 @@
 
 cd "Table 3 (fix add-uniform & random-walk)/parser-inputs3/"
 
-program="dotnet ../../../ProgramAnalyser/bin/Debug/net8.0/ProgramAnalyser.dll -O ../pt-inputs3 -tab:3"
+program="dotnet ../../../ProgramAnalyser/bin/Debug/net8.0/ProgramAnalyser.dll -O ../output -tab:3 -enc:../../../"
 
 $program add-uni-Q1.program -no_truncate -direct -Rp_x:0~1 -Rp_y:0~1 -int:p_y
 $program add-uni-Q2.program -no_truncate -direct -Rp_x:0~1 -Rp_y:0~1 -int:p_y
