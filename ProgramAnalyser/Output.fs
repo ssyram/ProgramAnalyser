@@ -1161,6 +1161,9 @@ let genOutput input =
     let analyser = Impl.OutputAnalysis input in
     analyser.GenerateOutput ()
 
+let outSp name =
+    (getDecFile $ name + "-ipt", Some (getDecFile $ name + "-cfg"))
+
 type ConfigCtx =
     {
         cfgProgram : Program
