@@ -485,7 +485,7 @@ let getDecFile name =
     | []               -> failwith $ $"Name \"{name}\" not found, all names: " + allNames ()
     | _                -> IMPOSSIBLE ()
 
-let testGetDecFile () =
-    List.iter (println << getDecFile) [
-        "5-1-ipt"
-    ]
+// let testGetDecFile () =
+//     List.iter (println << getDecFile) [
+//         "5-1-ipt"
+//     ]
