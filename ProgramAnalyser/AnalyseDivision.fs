@@ -319,7 +319,9 @@ type GeConj =
         And $ List.map mapper lst
     override x.ToString () =
         let (GeConj lst) = x in
-        String.concat " and " $ List.map (fun x -> $"{x}>=0") lst
+        match lst with
+        | [] -> "true"
+        | _  -> String.concat " and " $ List.map (fun x -> $"{x}>=0") lst
     interface IVariableCollectable with
         member this.CollectVars () =
             let (GeConj lst) = this in

@@ -39,7 +39,20 @@ let rec private hasDiv aExpr =
     | AConst _ | AVar _ -> false
     | AOperation (OpDiv, _) -> true
     | AOperation (_, lst) -> List.exists hasDiv lst
-    
+
+type RealInf =
+    | RINum of Numeric
+    | RINegInf
+    | RIPosInf
+    override x.ToString () =
+        match x with
+        | RINum n -> n.ToString ()
+        | RINegInf -> "-inf"
+        | RIPosInf -> "inf"
+    member x.ToString para =
+        match x with
+        | RINum n -> n.ToString para
+        | _ -> x.ToString ()
 
 let rec private simpArithExprForPrint arithExpr =
     if not $ hasDiv arithExpr then
@@ -192,6 +205,17 @@ module private Impl = begin
         // debugPrint $"New Invariant: \"{newPreLoopGuard}\",\nCompared to the old: \"{program.preLoopGuard}\"."
         { program with preLoopGuard = newPreLoopGuard }
 
+    let toFullName partialName =
+        match partialName with
+        | "pd-beta-v1" -> "pedestrian-beta-v1"
+        | "pd-beta-v2" -> "pedestrian-beta-v2"
+        | "pd-beta-v3" -> "pedestrian-beta-v3"
+        | "pd-beta-v4" -> "pedestrian-beta-v4"
+        | "pdld"       -> "pedestrian-LD"
+        | "pd"         -> "pedestrian"
+        | "pdmb-v5"    -> "pedestrian-multiple-branches-v5"
+        | _otherwise   -> partialName
+    
     /// to create a local context that captures the local information within a type
     type OutputAnalysis(input : ProgramAnalysisInput) =
         
@@ -236,7 +260,7 @@ module private Impl = begin
             | STIfBool lst -> List.exists (snd >> hasScoreList) lst
             | STIfProb (_, stT, stF) -> hasScoreList stT || hasScoreList stF
         
-        let program_name = programName
+        let program_name = toFullName programName
         let program_type =
             toString $
             if hasScoreList program.loopBody then ScoreRecursive
@@ -1139,7 +1163,7 @@ type ConfigCtx =
         cfgDegTwo : uint
         cfgDefDivM : uint
         cfgVarDivM : Map<Variable, uint>
-        cfgVarRanges : Map<Variable, Numeric * Numeric>
+        cfgVarRanges : Map<Variable, RealInf * RealInf>
         cfgSolver : string
         cfgTable : uint
     }
@@ -1149,7 +1173,7 @@ let private declVarRanges progVars ctx =
         let (min, max) =
             match Map.tryFind var ctx.cfgVarRanges with
             | Some range -> range
-            | None -> Flags.DEFAULT_CONFIG_VAR_RANGE
+            | None -> BiMap.bothMap RINum Flags.DEFAULT_CONFIG_VAR_RANGE
         in
         toString var + "@" + min.ToString "float" + " " + max.ToString "float"
     in

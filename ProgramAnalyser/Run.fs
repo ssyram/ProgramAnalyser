@@ -30,7 +30,7 @@ type ArgAnalysisResult = {
     /// var |-> (min, max)
     /// by default (0, 5)
     /// see Flags.DEFAULT_CONFIG_VAR_RANGE
-    specifiedRanges : Map<string, Numeric * Numeric>
+    specifiedRanges : Map<string, RealInf * RealInf>
     /// by default 6
     degree1 : int
     /// by default 6
@@ -203,8 +203,11 @@ let private getPosIntVal str =
         else Some ret
     with | _ -> None
 
-let private getNumeric str =
-    try Some $ Numeric.Parse str
+let private getNumeric (str : string) =
+    try match str.ToLower () with
+        | "-inf" -> Some RINegInf
+        | "+inf" | "inf" -> Some RIPosInf
+        | str -> Some (RINum $ Numeric.Parse str)
     with | _ -> None
 
 /// -m:number
@@ -283,6 +286,7 @@ let testParseVarRange () =
         "-Rr_t:2~10"
         "-Rp_t:0~0.1"
         "-Rp_x:-0.8~0.8"
+        "-Rp:-inf~inf"
     ]
 
 let parseDegreeSpec (str : string) =
