@@ -346,6 +346,10 @@ let private parseIntVar (str : string) =
     if str.StartsWith "-int:" && str.Length > 5 then Some $ str[5..]
     else None
 
+let private parseEncPath (str : string) =
+    if str.StartsWith "-enc:" && str.Length > 5 then Some $ str[5..]
+    else None
+
 // let testParseIntVar () =
 //     testExamples parseIntVar [
 //         "-int:"
@@ -375,6 +379,12 @@ let rec private argAnalysis args acc =
         }
     | intVar :: args when Option.isSome $ parseIntVar intVar ->
         Flags.INT_VARS <- Set.add (Option.get $ parseIntVar intVar) Flags.INT_VARS;
+        loop args acc
+    | encPath :: args when Option.isSome $ parseEncPath encPath ->
+        let path = Option.get $ parseEncPath encPath in
+        let enc = Path.Combine(path, ".enc") in
+        let intFl = Path.Combine(path, ".int.fl") in
+        Flags.ENC_PATHS <- (enc, intFl);
         loop args acc
     | table :: args when Option.isSome $ parseTab table ->
         loop args {
