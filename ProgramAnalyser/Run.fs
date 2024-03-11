@@ -129,10 +129,16 @@ let inline runPrintingOut (mainInput, args) (outPath : string option) =
     let timing = System.Diagnostics.Stopwatch () in
     timing.Start ();
     let main, cfg = runAllAnalysis mainInput args in
-    File.WriteAllText (outMainPath, main);
-    File.WriteAllText (outConfigPath, Option.get cfg);
     let time = timing.Elapsed in
+    let cfg = "Parser@" + time.TotalSeconds.ToString "f4" + "\n" + Option.get cfg in
+    File.WriteAllText (outMainPath, main);
+    File.WriteAllText (outConfigPath, cfg);
     debugPrint $"Time generating {Path.GetFileName pPath}: {time}"
+
+// let testFloatToString () =
+//     let f = 123456.123456789 in
+//     let str = f.ToString "f4" in
+//     printfn $"{str}"
 
 let private checkHasExtension (name : string) ext =
     let realExt = Path.GetExtension name in
@@ -385,6 +391,9 @@ let rec private argAnalysis args acc =
         let enc = Path.Combine(path, ".enc") in
         let intFl = Path.Combine(path, ".int.fl") in
         Flags.ENC_PATHS <- (enc, intFl);
+        loop args acc
+    | "-debug" :: args ->
+        Flags.DEBUG <- true;
         loop args acc
     | table :: args when Option.isSome $ parseTab table ->
         loop args {
