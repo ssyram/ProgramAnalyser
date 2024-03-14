@@ -334,18 +334,19 @@ type LossConfirm = LossConfirm
 /// MAY HAVE ACCURACY LOSS
 /// SHOULD CONFIRM THE LOSS HERE
 let cmpToArithExprList (LossConfirm) (op, a1, a2) =
-    let isInt (Variable v) = Set.contains v Flags.INT_VARS in
+    let isIntVar (Variable v) = Set.contains v Flags.INT_VARS in
+    let isInt = function | (AConst c) -> c.IsInt | _ -> false in
     match (op, a1, a2) with
-    | (CmpGt, AVar v, a2) when isInt v ->
+    | (CmpGt, AVar v, _) when isIntVar v && isInt a2 ->
         // v > a2 ==> v >= a2+1 ==> v - (a2+1) >= 0
         [ AOperation (OpMinus, [a1; AOperation (OpAdd, [a2; AConst NUMERIC_ONE])]) ]
-    | (CmpGt, _, AVar v) when isInt v ->
+    | (CmpGt, _, AVar v) when isIntVar v && isInt a1 ->
         // a1 > v ==> a1 - 1 >= v ==> a1 - 1 - v >= 0
         [ AOperation (OpMinus, [a1; AOperation (OpAdd, [a2; AConst NUMERIC_ONE])]) ]
-    | (CmpLt, AVar v, _) when isInt v ->
+    | (CmpLt, AVar v, _) when isIntVar v && isInt a2 ->
         // v < a2 ==> v <= a2 - 1 ==> a2 - 1 - v >= 0
         [ AOperation (OpMinus, [a2; AOperation (OpAdd, [a1; AConst NUMERIC_ONE])]) ]
-    | (CmpLt, _, AVar v) when isInt v ->
+    | (CmpLt, _, AVar v) when isIntVar v && isInt a1 ->
         // a1 < v ==> a1 + 1 <= v ==> v - a1 - 1 >= 0
         [ AOperation (OpMinus, [a2; AOperation (OpAdd, [a1; AConst NUMERIC_ONE])]) ]
     | _ ->
