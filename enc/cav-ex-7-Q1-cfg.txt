@@ -3,7 +3,7 @@
 Table@T3
 solver@LP
 bounded_domain
-p_c@0 40
+p_c@0 30
 p_i@0 4
 no_common_invs
 initial_inputs

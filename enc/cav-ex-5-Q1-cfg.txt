@@ -3,8 +3,8 @@
 Table@T3
 solver@LP
 bounded_domain
-p_m@10 20
-p_i@0 20
+p_m@20 inf
+p_i@0 10
 no_common_invs
 initial_inputs
 p_m@constant@10
