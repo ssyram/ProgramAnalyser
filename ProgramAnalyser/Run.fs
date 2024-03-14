@@ -93,22 +93,12 @@ let inline runParseAnalysis main maybeArgs =
     
     (main, maybeConfig)
 
-let runSpAnalysis name =
-    let spNames =
-        Set.ofList
-            [
-                "cav-ex-5-Q1"
-                "cav-ex-7-Q2"
-            ]
-    in
-    let outSp name =
-        match name with
-        | "cav-ex-5-Q1" -> outSp "5-1"
-        | "cav-ex-7-Q2" -> outSp "7-2"
-        | _ -> IMPOSSIBLE ()
-    in
-    if spNames.Contains name then Some $ outSp name else None
+let private getAllSp () =
+    undefined ()
 
+let runSpAnalysis name =
+    Map.tryFind name $ genAllSp ()
+    
 let runAllAnalysis main maybeArgs =
     let fileName = Path.GetFileNameWithoutExtension main.programPath in
     match runSpAnalysis fileName with

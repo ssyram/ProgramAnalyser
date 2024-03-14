@@ -116,7 +116,7 @@ module Flags =
     let mutable DEBUG = false
     let DEFAULT_CONFIG_VAR_RANGE = (Numeric 0, Numeric 5)
     let mutable INT_VARS : Set<string> = Set.empty
-    let mutable ENC_PATHS = ("./.enc", "./.int.fl")
+    let mutable ENC_PATHS = ("../../../../.enc", "../../../../.int.fl")
     
 let debugPrint x =
     if Flags.DEBUG then printfn $"{x}"

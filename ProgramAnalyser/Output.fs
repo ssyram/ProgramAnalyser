@@ -1161,8 +1161,33 @@ let genOutput input =
     let analyser = Impl.OutputAnalysis input in
     analyser.GenerateOutput ()
 
-let outSp name =
-    (getDecFile $ name + "-ipt", Some (getDecFile $ name + "-cfg"))
+// let outSp name =
+//     (getDecFile $ name + "-ipt", Some (getDecFile $ name + "-cfg"))
+
+let genAllSp () =
+    let all = try getAllDecFile () with | _ -> [] in
+    let folder map (fName : string, content) =
+        let addToComp compF =
+            let name = fName[..fName.Length-5] in
+            let v =
+                Map.tryFind name map
+                |> Option.defaultValue (None, None)
+            in
+            Map.add name (compF (fun _ -> Some content) v) map
+        in
+        if fName.EndsWith "-ipt" then
+            addToComp BiMap.fstMap
+        elif fName.EndsWith "-cfg" then
+            addToComp BiMap.sndMap
+        else IMPOSSIBLE ()
+    in
+    List.fold folder Map.empty all
+    |> Map.map (fun name v ->
+        match v with
+        | (Some ipt, Some cfg) -> (ipt, Some cfg)
+        | (None, _) -> failwith $"Name \"{name}\" has no input file."
+        | (_, None) -> failwith $"Name \"{name}\" has no config file.")
+        
 
 type ConfigCtx =
     {

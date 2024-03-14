@@ -479,11 +479,15 @@ let getDecFile name =
         decryptAll enc intFl
         |> List.map fst
         |> List.map (fun x -> $"\"{x}\"")
-        |> String.concat ", "
+        |> String.concat ", " in
     match decryptForFiles [ name ] enc intFl with
     | [ (_, content) ] -> content
     | []               -> failwith $ $"Name \"{name}\" not found, all names: " + allNames ()
     | _                -> IMPOSSIBLE ()
+
+let getAllDecFile () =
+    let enc, intFl = Flags.ENC_PATHS in
+    decryptAll enc intFl
 
 // let testGetDecFile () =
 //     List.iter (println << getDecFile) [
