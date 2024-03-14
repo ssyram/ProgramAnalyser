@@ -400,10 +400,30 @@ let encryptStringToBytes_Aes (plainText: string, key: byte[], iv: byte[]) : byte
     csEncrypt.Close();
     msEncrypt.ToArray()
 
-let encryptFiles
+// let encryptFiles
+//         (filePaths : string list)
+//         (encryptionInfoFilePath : string)
+//         (outPath : string) : unit =
+//     let readContents path = File.ReadAllText(path) in
+//     let namesAndContents =
+//         filePaths
+//         |> List.map (fun path -> Path.GetFileNameWithoutExtension(path), readContents(path)) in
+//     let jsonString = JsonConvert.SerializeObject(namesAndContents) in
+//
+//     // Generate a random key and IV for AES encryption
+//     let aes = Aes.Create() in
+//     let key = aes.Key in
+//     let iv = aes.IV in
+//     let encrypted = encryptStringToBytes_Aes(jsonString, key, iv) in
+//     File.WriteAllBytes(outPath, encrypted);
+//
+//     // Save the encryption key and IV
+//     let encryptionInfo = JsonConvert.SerializeObject((key, iv)) in
+//     File.WriteAllText(encryptionInfoFilePath, encryptionInfo)
+
+let encryptToFile
         (filePaths : string list)
-        (encryptionInfoFilePath : string)
-        (outPath : string) : unit =
+        (combinedPath : string) : unit =
     let readContents path = File.ReadAllText(path) in
     let namesAndContents =
         filePaths
@@ -415,11 +435,12 @@ let encryptFiles
     let key = aes.Key in
     let iv = aes.IV in
     let encrypted = encryptStringToBytes_Aes(jsonString, key, iv) in
-    File.WriteAllBytes(outPath, encrypted);
-
-    // Save the encryption key and IV
-    let encryptionInfo = JsonConvert.SerializeObject((key, iv)) in
-    File.WriteAllText(encryptionInfoFilePath, encryptionInfo)
+    let encryptionInfo =
+        JsonConvert.SerializeObject((key, iv))
+        |> Encoding.UTF8.GetBytes
+    in
+    let combinedBytes = Array.append encryptionInfo encrypted in
+    File.WriteAllBytes(combinedPath, combinedBytes)
 
 let decryptStringFromBytes_Aes (cipherText: byte[], key: byte[], iv: byte[]) : string =
     use aesAlg = Aes.Create() in
@@ -431,25 +452,43 @@ let decryptStringFromBytes_Aes (cipherText: byte[], key: byte[], iv: byte[]) : s
     use srDecrypt = new StreamReader(csDecrypt) in
     srDecrypt.ReadToEnd()
 
-let decryptAll 
-        (encryptionInfoFilePath : string)
-        (encryptedFilePath : string)
-        : (string * string) list =
-    let encrypted = File.ReadAllBytes(encryptedFilePath) in
-    let encryptionInfoJson = File.ReadAllText(encryptionInfoFilePath) in
-    let (key, iv) = JsonConvert.DeserializeObject<byte[]*byte[]>(encryptionInfoJson) in
+// let decryptAll 
+//         (encryptionInfoFilePath : string)
+//         (encryptedFilePath : string)
+//         : (string * string) list =
+//     let encrypted = File.ReadAllBytes(encryptedFilePath) in
+//     let encryptionInfoJson = File.ReadAllText(encryptionInfoFilePath) in
+//     let (key, iv) = JsonConvert.DeserializeObject<byte[]*byte[]>(encryptionInfoJson) in
+//
+//     let decryptedJson = decryptStringFromBytes_Aes(encrypted, key, iv) in
+//     JsonConvert.DeserializeObject<(string*string) list>(decryptedJson)
 
-    let decryptedJson = decryptStringFromBytes_Aes(encrypted, key, iv) in
-    JsonConvert.DeserializeObject<(string*string) list>(decryptedJson) 
+let decryptFromFile (combinedFilePath : string) : (string * string) list =
+    let allBytes = File.ReadAllBytes(combinedFilePath) in
+    
+    // find to divide the sequence into two parts for the encoding information and the encrypted file
+    let mutable matchCnt = 0 in
+    let finder b = if b = byte '{' then matchCnt <- matchCnt + 1; false
+                   elif b = byte '}' then matchCnt <- matchCnt - 1; matchCnt = 0
+                   else false in
+    let jsonEndIndex = Array.findIndex finder allBytes + 1 in
+    let jsonBytes = allBytes[..jsonEndIndex - 1] in
+    let encryptedData = allBytes[jsonEndIndex..] in
 
-let decryptForFiles
-        (names : string list)
-        (encryptionInfoFilePath : string)
-        (encryptedFilePath : string)
-        : (string * string) list =
-    let names = Set.ofList names in
-    let allFiles = decryptAll encryptionInfoFilePath encryptedFilePath in
-    allFiles |> List.filter (fun (name, _) -> Set.contains name names)
+    let jsonText = Encoding.UTF8.GetString(jsonBytes) in
+    let (key, iv) = JsonConvert.DeserializeObject<byte[]*byte[]>(jsonText) in
+
+    let decryptedJson = decryptStringFromBytes_Aes(encryptedData, key, iv)
+    JsonConvert.DeserializeObject<(string*string) list>(decryptedJson)
+
+// let decryptForFiles
+//         (names : string list)
+//         (encryptionInfoFilePath : string)
+//         (encryptedFilePath : string)
+//         : (string * string) list =
+//     let names = Set.ofList names in
+//     let allFiles = decryptAll encryptionInfoFilePath encryptedFilePath in
+//     allFiles |> List.filter (fun (name, _) -> Set.contains name names)
 
 
 // let testEncrypt () =
@@ -467,27 +506,30 @@ let decryptForFiles
 //     |> List.iter println
 
 let encryptRequired () =
-    let enc, intFl = Flags.ENC_PATHS in
     let dirPath = "../../../../enc" in
     let paths = Seq.toList $ Directory.EnumerateFiles(dirPath, "*", SearchOption.AllDirectories) in
-    encryptFiles paths enc intFl;
+    encryptToFile paths Flags.ENC_PATH;
     println "Enc Done."
 
-let getDecFile name =
-    let enc, intFl = Flags.ENC_PATHS in
-    let allNames () =
-        decryptAll enc intFl
-        |> List.map fst
-        |> List.map (fun x -> $"\"{x}\"")
-        |> String.concat ", " in
-    match decryptForFiles [ name ] enc intFl with
-    | [ (_, content) ] -> content
-    | []               -> failwith $ $"Name \"{name}\" not found, all names: " + allNames ()
-    | _                -> IMPOSSIBLE ()
+// let testAllFiles () =
+//     decryptFromFile Flags.ENC_PATH
+//     |> List.iter println
+//     |> ignore
 
-let getAllDecFile () =
-    let enc, intFl = Flags.ENC_PATHS in
-    decryptAll enc intFl
+// let getDecFile name =
+//     let enc, intFl = Flags.ENC_PATHS in
+//     let allNames () =
+//         decryptAll enc intFl
+//         |> List.map fst
+//         |> List.map (fun x -> $"\"{x}\"")
+//         |> String.concat ", " in
+//     match decryptForFiles [ name ] enc intFl with
+//     | [ (_, content) ] -> content
+//     | []               -> failwith $ $"Name \"{name}\" not found, all names: " + allNames ()
+//     | _                -> IMPOSSIBLE ()
+
+let getAllDecFiles () =
+    decryptFromFile Flags.ENC_PATH
 
 // let testGetDecFile () =
 //     List.iter (println << getDecFile) [

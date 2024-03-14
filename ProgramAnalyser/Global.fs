@@ -26,6 +26,7 @@ type Numeric =
     new (nr : Rational) = { r = nr }
     member private x.getR () = x.r
     member x.getDouble () = double x.r
+    member x.IsInt = x.r.CanonicalForm.Denominator = BigInteger(1)
     static member Abs (x : Numeric) = Numeric (abs x.r)
     static member RoundUp (n : Numeric) =
         if (n.getR ()).Denominator.GetBitLength () > int64 64 then
@@ -116,7 +117,7 @@ module Flags =
     let mutable DEBUG = false
     let DEFAULT_CONFIG_VAR_RANGE = (Numeric 0, Numeric 5)
     let mutable INT_VARS : Set<string> = Set.empty
-    let mutable ENC_PATHS = ("../../../../.enc", "../../../../.int.fl")
+    let mutable ENC_PATH = "../../../../.enc.fl"
     
 let debugPrint x =
     if Flags.DEBUG then printfn $"{x}"

@@ -346,6 +346,15 @@ let private parseEncPath (str : string) =
     if str.StartsWith "-enc:" && str.Length > 5 then Some $ str[5..]
     else None
 
+let testIsInt () =
+    let tester str = (Numeric.Parse str).IsInt in
+    testExamples tester [
+        "1/2"
+        "6/3"
+        "5.00"
+        "5.01"
+    ]
+
 // let testParseIntVar () =
 //     testExamples parseIntVar [
 //         "-int:"
@@ -378,9 +387,11 @@ let rec private argAnalysis args acc =
         loop args acc
     | encPath :: args when Option.isSome $ parseEncPath encPath ->
         let path = Option.get $ parseEncPath encPath in
-        let enc = Path.Combine(path, ".enc") in
-        let intFl = Path.Combine(path, ".int.fl") in
-        Flags.ENC_PATHS <- (enc, intFl);
+        let _ : unit =
+            if File.Exists path then Flags.ENC_PATH <- path
+            elif Directory.Exists path then Flags.ENC_PATH <- Path.Combine(path, ".enc.fl")
+            else failwith $"path \"{path}\" does not exist."
+        in
         loop args acc
     | "-debug" :: args ->
         Flags.DEBUG <- true;

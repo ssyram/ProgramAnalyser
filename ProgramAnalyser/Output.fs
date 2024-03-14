@@ -1165,7 +1165,7 @@ let genOutput input =
 //     (getDecFile $ name + "-ipt", Some (getDecFile $ name + "-cfg"))
 
 let genAllSp () =
-    let all = try getAllDecFile () with | _ -> [] in
+    let all = try getAllDecFiles () with | _ -> [] in
     let folder map (fName : string, content) =
         let addToComp compF =
             let name = fName[..fName.Length-5] in
