@@ -1399,7 +1399,7 @@ module private Impl = begin
                 |> flip (Map.add var) accSign in
             getPreAssnProgVars program
             |> reorderByDependency
-            |> (fun x -> debugPrint $"{x}"; x)
+            // |> (fun x -> debugPrint $"{x}"; x)
             |> List.fold genSign (Map.ofSeq rvSigns)
         let toNormalisedXFormulaList var expr =
             arithExprToNormalisedPolynomial expr
