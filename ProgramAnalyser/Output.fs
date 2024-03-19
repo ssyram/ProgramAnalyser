@@ -1567,11 +1567,9 @@ let genAllSp () =
             in
             Map.add name (compF (fun _ -> Some content) v) map
         in
-        if fName.EndsWith "-ipt" then
-            addToComp BiMap.fstMap
-        elif fName.EndsWith "-cfg" then
-            addToComp BiMap.sndMap
-        else IMPOSSIBLE ()
+        if fName.EndsWith "-ipt" then addToComp BiMap.fstMap
+        elif fName.EndsWith "-cfg" then addToComp BiMap.sndMap
+        else map
     in
     List.fold folder Map.empty all
     |> Map.map (fun name v ->
