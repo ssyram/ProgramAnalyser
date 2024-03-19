@@ -1,6 +1,7 @@
 module ProgramAnalyser.Output
 
 open System
+open System.Collections.Generic
 open Global
 open Microsoft.FSharp.Reflection
 open ProgramAnalyser.Analysis
@@ -180,13 +181,13 @@ module private Impl = begin
             | aExpr -> Some (CmpGe, aExpr, AConst NUMERIC_ZERO)
         in
         let combineWithOriginal (ConjCmps lst') =
-            boolExprToProposition program.preLoopGuard
+            boolExprToProposition program.invariant
             |> propToValidConjCmpList true
             |> function
             | [ (ConjCmps lst) ] -> ConjCmps $ lst ++ lst'
             | _ -> IMPOSSIBLE ()
         in
-        let newPreLoopGuard =
+        let newInvariant =
             getProbExprList program.loopBody
             |> List.choose getAdditionalRequirement
             |> ConjCmps
@@ -203,7 +204,7 @@ module private Impl = begin
                 | lst -> List.reduce (curry BAnd) lst
         in
         // debugPrint $"New Invariant: \"{newPreLoopGuard}\",\nCompared to the old: \"{program.preLoopGuard}\"."
-        { program with preLoopGuard = newPreLoopGuard }
+        { program with invariant = newInvariant }
 
     let toFullName partialName =
         match partialName with
@@ -221,6 +222,57 @@ module private Impl = begin
         | "cav-ex-7-Q1" -> "cav-example-7-Q1"
         | "cav-ex-7-Q2" -> "cav-example-7-loop"
         | _otherwise   -> partialName
+    
+    let enumerateEdges analysisPaths =
+        let initialEdges =
+            List.concat $
+            match analysisPaths with
+            | PLCond condPaths -> List.map collectEdgeStmtFromCondPath condPaths
+            | PLProb probPaths -> List.map collectEdgeStmtFromProbPath probPaths
+        in
+        let clearAfterBreak (Edge (guard, p, lst)) =
+            let folder (toAcc, foundBreak) es =
+                if foundBreak then (toAcc, true)
+                else match es with
+                     | ESBreak -> (ESBreak :: toAcc, true)
+                     | _ -> (es :: toAcc, false)
+            in
+            // note that this fold is from left and the final result is reversed
+            List.fold folder ([], false) lst
+            |> fst
+            |> List.rev  // reverse the folding result
+            |> fun lst -> Edge (guard, p, lst)
+        in
+        List.map clearAfterBreak initialEdges
+        
+    let edgeToAssnPath (Edge (guard, _, lst)) =
+        let folder (assnLst, toBreak as pair) es =
+            if toBreak then pair
+            else match es with
+                 | ESAssign (var, expr) -> ((var, expr) :: assnLst, toBreak)
+                 | ESScore  _           -> pair
+                 | ESBreak              -> (assnLst, true)
+        in
+        List.fold folder ([], false) lst
+        |> BiMap.fstMap List.rev
+        |> fun (lst, toBreak) -> AssignmentPath (guard, lst, toBreak)
+    
+    let enumAllAssnPaths program =
+        computePaths program.loopBody
+        |> enumerateEdges
+        |> List.map edgeToAssnPath
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     /// to create a local context that captures the local information within a type
     type OutputAnalysis(input : ProgramAnalysisInput) =
@@ -272,7 +324,7 @@ module private Impl = begin
             if hasScoreList program.loopBody then ScoreRecursive
             else NonScoreRecursive
             
-        let loopInvariant = boolExprToProposition program.preLoopGuard
+        let loopInvariant = boolExprToProposition program.invariant
         
         // let loopInv =
         //     match propToValidGeConj LossConfirm loopInvariant with
@@ -404,39 +456,7 @@ module private Impl = begin
             generatePathsInfo ()
         
         /// an edge either ends with a `break` or does not contain any `break` statement
-        let enumeratedEdges =
-            let initialEdges =
-                List.concat $
-                match analysisPaths with
-                | PLCond condPaths -> List.map collectEdgeStmtFromCondPath condPaths
-                | PLProb probPaths -> List.map collectEdgeStmtFromProbPath probPaths
-            in
-            let clearAfterBreak (Edge (guard, p, lst)) =
-                let folder (toAcc, foundBreak) es =
-                    if foundBreak then (toAcc, true)
-                    else match es with
-                         | ESBreak -> (ESBreak :: toAcc, true)
-                         | _ -> (es :: toAcc, false)
-                in
-                // note that this fold is from left and the final result is reversed
-                List.fold folder ([], false) lst
-                |> fst
-                |> List.rev  // reverse the folding result
-                |> fun lst -> Edge (guard, p, lst)
-            in
-            List.map clearAfterBreak initialEdges
-            
-        let edgeToAssnPath (Edge (guard, _, lst)) =
-            let folder (assnLst, toBreak as pair) es =
-                if toBreak then pair
-                else match es with
-                     | ESAssign (var, expr) -> ((var, expr) :: assnLst, toBreak)
-                     | ESScore  _           -> pair
-                     | ESBreak              -> (assnLst, true)
-            in
-            List.fold folder ([], false) lst
-            |> BiMap.fstMap List.rev
-            |> fun (lst, toBreak) -> AssignmentPath (guard, lst, toBreak)
+        let enumeratedEdges = enumerateEdges analysisPaths
             
         let enumeratedAssnPaths =
             List.map edgeToAssnPath enumeratedEdges
@@ -486,7 +506,7 @@ module private Impl = begin
                                 let wholeCond =
                                     And $ [
                                         boolExprToProposition cond
-                                        boolExprToProposition program.preLoopGuard
+                                        boolExprToProposition program.invariant
                                     ]
                                 in
                                 let range =
@@ -1155,14 +1175,386 @@ module private Impl = begin
             ]
             |> fromListGenOutput
 
+
+
+    /// for something like: x = x + 1, x = x + 2
+    /// combine to x = x + 3
+    /// More generally, every variable is assigned for only once, with the RHS variables being the
+    /// ones BEFORE EXECUTING THE PATH
+    /// that is, for the RESULTING assignments:
+    /// x1 = P1
+    /// x2 = P2
+    /// even if P2 contains x1, it should refer to the one BEFORE P1 is assigned to x1
+    /// Hence, the return value is a map for each variable, with NO ORDER
+    let combineAssns (AssignmentPath (_, updates, _)) =
+        let aggrUpdates updateMap (v, expr) =
+            Map.add v (substVars expr updateMap) updateMap in
+        List.fold aggrUpdates Map.empty updates
+        |> Map.map (fun _ -> normaliseArithExpr)
+
+    type SimSign =
+        | SSPos
+        | SSNeg
+        | SSZero
+        | SSNonFixed
+        member x.SignNum =
+            match x with
+            | SSPos -> Some 1
+            | SSNeg -> Some (-1)
+            | SSZero -> Some 0
+            | SSNonFixed -> None
+        static member FromSigNum sn =
+            match sn with
+            | -1 -> SSNeg
+            | 1 -> SSPos
+            | 0 -> SSZero
+            | _ -> SSNonFixed
+    
+    type Monotonicity =
+        /// x = x + 1
+        | MInc
+        /// x = x - 1
+        | MDec
+        /// x = x
+        | MUnchanged
+        /// x = 1
+        | MReset
+        /// x = x + 1 | x = x - 1
+        | MNonFixed
+    
+    type InvariantGeneration (program : Program, rvRanges : Map<Variable, Numeric * Numeric>) =
+        let isTab3 = Flags.TABLE = 3
+        let allAssnPathInfo =
+            enumAllAssnPaths program
+            |> List.map combineAssns
+        let preLoopAssn =
+            let exInfo = function STAssn (v, e) -> (v, normaliseArithExpr e) | _ -> IMPOSSIBLE () in
+            List.map exInfo program.assnLst
+            |> Map.ofList
+        let preAssnIsRv var =
+            match Map.find var preLoopAssn with
+            | AVar _ -> true
+            | _ -> false
+        let preAssnIsConst var =
+            match Map.find var preLoopAssn with
+            | AConst _ -> true
+            | _ -> false
+        /// all variables appearing in all conditional guards
+        let condVars =
+            let endLoopIfVars = Option.defaultValue Set.empty $ Option.map collectVars program.mayIfScoreCond in
+            let rec condVars (st : Statement) : Set<Variable> =
+                match st with
+                | STIfBool lst ->
+                    let mapper (g, lst) =
+                        List.map condVars lst
+                        |> Set.unionMany
+                        |> Set.union (collectVars g) in
+                    Set.unionMany $ List.map mapper lst
+                | STIfProb (pExpr, t, f) ->
+                    let lst = List.map condVars t ++ List.map condVars f in
+                    Set.unionMany lst
+                    |> Set.union (collectVars pExpr)
+                | STAssn _ | STBreak | STSkip | STInLoopScore _ ->
+                    Set.empty in
+            List.map condVars program.loopBody
+            |> Set.unionMany
+            |> Set.union (collectVars program.loopGuard)
+            |> Set.union endLoopIfVars
+        /// all variables appearing in all score statements
+        let scoreVars =
+            let endScoreVars =
+                match program.mayEndScore with
+                | None -> Set.empty
+                | Some (ScoreArith e) -> collectVars e
+                | Some (ScoreDist (_, e)) -> collectVars e
+            in
+            let rec scoreVars st =
+                match st with
+                | STIfBool lst ->
+                    let mapper (_, lst) = Set.unionMany $ List.map scoreVars lst in
+                    Set.unionMany $ List.map mapper lst
+                | STIfProb (_, t, f) ->
+                    Set.unionMany (List.map scoreVars t ++ List.map scoreVars f)
+                | STInLoopScore sExpr -> collectVars sExpr
+                | STAssn _ | STBreak | STSkip -> Set.empty
+            in
+            List.map scoreVars program.loopBody
+            |> Set.unionMany
+            |> Set.union endScoreVars
+        let inLoopGuard var = Set.contains var $ collectVars program.loopGuard
+        let inAnyCond var = Set.contains var condVars
+        let inAnyScore var = Set.contains var scoreVars
+        let shouldIgnoreVar var =
+            if preAssnIsRv var then
+                inLoopGuard var || not (inAnyCond var)
+            elif preAssnIsConst var then
+                if isTab3 then false
+                else not (inAnyCond var) && not (inAnyScore var)
+            else
+                failwith
+                    $"Pre-loop assignment for variable {var} is neither random variable nor constant."
+        let topoSort depOn (vertices : _ list) =
+            let visited = HashSet<_>() in
+            let rec dfs acc v =
+                let folder acc v' = if depOn v v' then dfs acc v' else acc in
+                if not $ visited.Add v then acc
+                else v :: List.fold folder acc vertices
+            in
+            List.rev $ List.fold dfs [] vertices
+        let colDep pVarSet =
+            let folder accDep pathAssnMap =
+                let addToAccDep accDep (v, expr) =
+                    let oriSet = Option.defaultValue Set.empty $ Map.tryFind v accDep in
+                    collectVars expr
+                    |> Set.intersect pVarSet
+                    |> Set.union oriSet
+                    |> flip (Map.add v) accDep
+                in
+                Map.toList pathAssnMap
+                |> List.fold addToAccDep accDep
+            in
+            List.fold folder Map.empty allAssnPathInfo
+        let reorderByDependency (pVars : Variable list) =
+            let pVarSet = Set.ofList pVars in
+            let dependencies = colDep pVarSet in
+            let depOn x y = match Map.tryFind x dependencies with
+                            | Some s -> Set.contains y s
+                            | None -> false in
+            topoSort depOn pVars
+        let constSign c =
+            if c > NUMERIC_ZERO then SSPos
+            elif c < NUMERIC_ZERO then SSNeg
+            else SSZero
+        let varSign signs v =
+            match Map.tryFind v signs with
+            | Some s -> s
+            | None -> failwith $"variable \"{v}\" has no sign."
+        let unionSignVal x y =
+            match x, y with
+            | SSZero, _ -> y
+            | _, SSZero -> x
+            | SSNeg, SSNeg -> SSNeg
+            | SSPos, SSPos -> SSPos
+            | _ -> SSNonFixed
+        let rec exprSign signs expr =
+            let mergeAdd x y = unionSignVal x y in
+            let mergeMul (x : SimSign) (y : SimSign) =
+                let x = Option.defaultValue 11 $ x.SignNum in
+                let y = Option.defaultValue 11 $ y.SignNum in
+                SimSign.FromSigNum (x * y) in
+            let negSign x =
+                match x with
+                | SSPos -> SSNeg
+                | SSNeg -> SSPos
+                | _ -> x
+            match expr with
+            | AConst c -> constSign c
+            | AVar v -> varSign signs v
+            | AOperation (op, lst) ->
+                let lst = List.map (exprSign signs) lst in
+                match op, lst with
+                | OpAdd, lst -> List.fold mergeAdd SSZero lst
+                | OpMul, lst -> List.fold mergeMul SSPos lst
+                | OpMinus, [x] -> negSign x
+                | OpMinus, (hd :: lst) ->
+                    List.fold mergeAdd SSZero lst
+                    |> negSign
+                    |> mergeAdd hd
+                | OpDiv, lst -> List.fold mergeMul SSPos lst
+                | OpMinus, [] -> failwith "EMPTY EXPRESSION."
+        let allLoopAssns var =
+            let relatedAssns var pathAssnInfo =
+                Map.toList pathAssnInfo
+                |> List.filter (fst >> fun v' -> v' = var) in
+            List.map (relatedAssns var) allAssnPathInfo
+            |> List.concat
+            |> List.map snd
+        let varSigns =
+            let rvSigns =
+                let getSign (lower, upper) =
+                    if upper < NUMERIC_ZERO then SSNeg
+                    elif lower > NUMERIC_ZERO then SSPos
+                    elif upper = NUMERIC_ZERO && lower < NUMERIC_ZERO then SSNeg
+                    elif lower = NUMERIC_ZERO && upper > NUMERIC_ZERO then SSPos
+                    elif lower = NUMERIC_ZERO && upper = NUMERIC_ZERO then SSZero
+                    else SSNonFixed
+                in
+                Map.toList rvRanges
+                |> List.map (BiMap.sndMap getSign) in
+            let genSign accSign var =
+                let pickInitVal st =
+                    match st with
+                    | STAssn (v, expr) -> if v = var then Some $ exprSign accSign expr else None
+                    | _ -> IMPOSSIBLE () in
+                let initVal =
+                    match List.tryPick pickInitVal program.assnLst with
+                    | Some sign -> sign
+                    | None -> failwith $"No initial value is given to variable \"{var}\"."
+                in
+                /// the temporary value should use the first value as the temporary hint
+                let tmpAccSign = Map.add var initVal accSign in
+                allLoopAssns var
+                |> List.map (exprSign tmpAccSign)
+                |> List.fold unionSignVal SSZero
+                |> flip (Map.add var) accSign in
+            getPreAssnProgVars program
+            |> reorderByDependency
+            |> (fun x -> debugPrint $"{x}"; x)
+            |> List.fold genSign (Map.ofSeq rvSigns)
+        let toNormalisedXFormulaList var expr =
+            arithExprToNormalisedPolynomial expr
+            |> polynomialToXFormula var
+            |> Map.toList
+            |> List.sortBy fst
+        let getLocalMonotonicity var expr =
+            match toNormalisedXFormulaList var expr with
+            | [] -> failwith "Empty Expression."
+            | [ (0u, _) ] -> MReset
+            | [ (1u, Polynomial [ (num, []) ] ) ] ->
+                match Map.find var varSigns with
+                | SSPos ->
+                    if num < NUMERIC_ZERO then MNonFixed
+                    elif num = NUMERIC_ZERO then MReset
+                    elif num < NUMERIC_ONE then MDec
+                    elif num = NUMERIC_ONE then MUnchanged
+                    else MInc
+                | SSNeg ->
+                    if num < NUMERIC_ZERO then MNonFixed
+                    elif num = NUMERIC_ZERO then MReset
+                    elif num < NUMERIC_ONE then MInc
+                    elif num = NUMERIC_ONE then MUnchanged
+                    else MDec
+                | SSZero -> MUnchanged
+                | SSNonFixed ->
+                    if num < NUMERIC_ZERO then MNonFixed
+                    elif num = NUMERIC_ZERO then MReset
+                    elif num < NUMERIC_ONE then MNonFixed
+                    elif num = NUMERIC_ONE then MUnchanged
+                    else MNonFixed
+            | [ (0u, p0); (1u, p1) ] ->
+                let zSign = exprSign varSigns $ polynomialToArithExpr p0 in
+                let oSign = exprSign varSigns $ polynomialToArithExpr p1 in
+                match oSign, zSign with
+                | SSPos, SSPos -> MInc
+                | SSPos, SSNeg -> MDec
+                | SSPos, SSZero -> failwith "Unknown case."
+                | SSPos, SSNonFixed -> MNonFixed
+                | SSNeg, _ -> MNonFixed
+                | SSZero, _ -> MReset
+                | SSNonFixed, _ -> MNonFixed
+            | _ -> failwith "Currently Support Only Linear Expression."
+        let joinLocMono var =
+            let joinMono x y =
+                match x, y with
+                | MInc, MInc -> MInc
+                | MDec, MDec -> MDec
+                | MInc, MDec | MDec, MInc -> MNonFixed
+                | MUnchanged, v | v, MUnchanged -> v
+                | MReset, _ | _, MReset -> failwith "Unknown case."
+                | MNonFixed, _ | _, MNonFixed -> MNonFixed in
+            allLoopAssns var
+            |> List.map (getLocalMonotonicity var)
+            |> List.fold joinMono MUnchanged
+        let isMonoInc var = MInc = joinLocMono var
+        let isMonoDec var = MDec = joinLocMono var
+        let noUpdate var = List.isEmpty $ allLoopAssns var
+        let lowerBoundByPreLoopAssn var =
+            match Map.find var preLoopAssn with
+            | AConst c -> BCompare (CmpGe, AVar var, AConst c)
+            | AVar rv ->
+                match Map.tryFind rv rvRanges with
+                | None ->
+                    failwith
+                        $"The initial non-constant value of variable \"{var}\" is not a random variable."
+                | Some (lower, _) -> BCompare (CmpGe, AVar var, AConst lower)
+            | _ -> IMPOSSIBLE ()
+        let upperBoundByPreLoopAssn var =
+            match Map.find var preLoopAssn with
+            | AConst c -> BCompare (CmpLe, AVar var, AConst c)
+            | AVar rv ->
+                match Map.tryFind rv rvRanges with
+                | None ->
+                    failwith
+                        $"The initial non-constant value of variable \"{var}\" is not a random variable."
+                | Some (_, upper) -> BCompare (CmpLe, AVar var, AConst upper)
+            | _ -> IMPOSSIBLE ()
+        let genBasicInvConds var =
+            if isMonoInc var then [ lowerBoundByPreLoopAssn var ]
+            elif isMonoDec var then [ upperBoundByPreLoopAssn var ]
+            elif noUpdate var then
+                [ lowerBoundByPreLoopAssn var
+                  upperBoundByPreLoopAssn var ]
+            // has update while is not monotone
+            else []
+        /// v = v + c * rv
+        let maxRvUpdate v =
+            let rvUpdate e =
+                match toNormalisedXFormulaList v e with
+                | [] -> failwith "EMPTY EXPRESSION."
+                | [ (0u, Polynomial [ n0, [ rv ] ]); (1u, Polynomial [ num, [] ]) ] ->
+                    if num = NUMERIC_ONE then
+                        match Map.tryFind rv rvRanges with
+                        | Some (lower, upper) -> Some $ max (n0 * lower) (n0 * upper)
+                        | _ -> None
+                    else None
+                | _ -> None
+            allLoopAssns v
+            |> List.choose rvUpdate
+            |> function
+            | [] -> None
+            | lst -> Some (List.max lst)
+        let genEndLoopIfCond var =
+            let binder bExpr =
+                match bExpr with
+                | BCompare (CmpLe, AVar v, AConst c)
+                        | BCompare (CmpGe, AConst c, AVar v) when v = var ->
+                    if c.IsInt then
+                        let cmpProp maxVal = BCompare (CmpLe, AVar v, AConst $ c + maxVal) in
+                        Option.map cmpProp $ maxRvUpdate v
+                    else None
+                | _ -> None
+            Option.bind binder $ program.mayIfScoreCond
+        let genVarInvConds var =
+            genBasicInvConds var ++ Option.toList (genEndLoopIfCond var)
+        member x.GenerateInvariant () =
+            getPreAssnProgVars program
+            |> List.filter (not << shouldIgnoreVar)
+            |> List.collect genVarInvConds
+            |> function
+            | [] -> BTrue
+            | lst -> List.reduce (curry BAnd) lst
+
 end
 
+// let genInvariant program rvRanges =
+//     let ignoreVar program isTab3 var =
+//         if preAssnIsRv var then
+//             inLoopGuard program var || notInAnyCond program var
+//         elif preAssnIsConst var then
+//             if isTab3 then false
+//             else notInAnyCond program var && notInAnyScore program var
+//         else
+//             failwith
+//                 $"Pre-loop assignment for variable {var} is neither random variable nor constant."
+//     in
+//     let pVars = 
+//         getPreAssnProgVars program
+//         |> List.filter (not << ignoreVar program (Flags.TABLE = 3))
+//         |> reorderByDependency program
+//     in
+//     |> List.fold (genVarInvConds program) (rvRanges, [])
+//     |> snd
+//     |> List.fold (curry BAnd) BTrue
+
 let genOutput input =
+    let generator = Impl.InvariantGeneration (input.program, input.randVarRanges) in
+    let programWithInv = {
+        input.program with invariant = generator.GenerateInvariant ()
+    } in
+    debugPrint $"Generated Program Invariant: \"{programWithInv.invariant}\".";
+    let input = { input with program = programWithInv } in
     let analyser = Impl.OutputAnalysis input in
     analyser.GenerateOutput ()
-
-// let outSp name =
-//     (getDecFile $ name + "-ipt", Some (getDecFile $ name + "-cfg"))
 
 let genAllSp () =
     let all = try getAllDecFiles () with | _ -> [] in

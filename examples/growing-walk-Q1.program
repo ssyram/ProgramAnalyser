@@ -1,7 +1,7 @@
 p_x:=1;
 p_t:=0;
 
-[p_x>=1 and p_t>=0]
+
 while true do
    if prob(0.5) then
        break

@@ -1,7 +1,6 @@
 p_pos:=r_0;
 p_dis:=0;
 
-[p_pos+1>=0 and p_dis>=0]
 while p_pos>=0 do
   if p_pos>=1.5 then
      if prob(0.5) then

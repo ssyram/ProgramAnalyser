@@ -31,14 +31,13 @@ open ProgramAnalyser.Objects
 
 program : 
     assignment_list
-    LBKT bool_expr RBKT
     ST_WHILE bool_expr ST_DO
       non_loop_statements
     ST_OD SEMI_COLON
     optional_end_score_statement
     optional_if_score_statement
     ST_RETURN ID
-    END { mkProgram ($1, $3, $6, $8, $11, $12, Variable $14) }
+    END { mkProgram ($1, BTrue, $3, $5, $8, $9, Variable $11) }
 
 optional_if_score_statement :
       { None }

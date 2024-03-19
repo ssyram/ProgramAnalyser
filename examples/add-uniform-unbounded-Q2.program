@@ -1,7 +1,6 @@
 p_x:=0;
 p_y:=0;
 
-[p_y>=0 and p_x>=0]
 while p_y<=1 do
    if prob(0.5) then
       p_y:=p_y+1;

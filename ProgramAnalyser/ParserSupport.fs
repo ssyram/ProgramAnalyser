@@ -67,7 +67,7 @@ type EndLoopScore =
 
 type Program = {
     assnLst:Statement list
-    preLoopGuard:BoolExpr
+    invariant:BoolExpr
     loopGuard:BoolExpr
     loopBody:Statement list
     mayEndScore:EndLoopScore option
@@ -84,7 +84,7 @@ let mkProgram
         mayIfScoreCond:BoolExpr option,
         retVar:Variable) = {
             assnLst = assnLst
-            preLoopGuard = preLoopGuard
+            invariant = preLoopGuard
             loopGuard = loopGuard
             loopBody = loopBody
             mayEndScore = mayEndScore
@@ -130,7 +130,7 @@ let rec collectStatementUsedVars (st : Statement) =
 let collectUsedVarsFromProgram (program : Program) =
     Set.unionMany [
 //        Set.unionMany $ List.map collectStatementUsedVars program.assnLst
-        Set.unionMany $ List.map collectVars [ program.preLoopGuard; program.loopGuard ]
+        Set.unionMany $ List.map collectVars [ program.invariant; program.loopGuard ]
         // Set.add program.retVar Set.empty
         Set.unionMany $ List.map collectStatementUsedVars program.loopBody
         Set.unionMany $ List.map collectEndScoreLoopVars (Option.toList program.mayEndScore)
@@ -182,10 +182,10 @@ let rec private removeNonMentionedVars bExpr mentionVars =
 let private programRemoveNoUseInvariantVars program =
     let nonInvVars = collectNonInvariantVars program in
     let preLoopGuardWithoutNonInvVars =
-        Option.defaultValue BTrue $ removeNonMentionedVars program.preLoopGuard nonInvVars
+        Option.defaultValue BTrue $ removeNonMentionedVars program.invariant nonInvVars
     in
     { program
-        with preLoopGuard = preLoopGuardWithoutNonInvVars }
+        with invariant = preLoopGuardWithoutNonInvVars }
 
 /// remove the unused variables and its updates
 /// including those only mentioned within pre-loop guard (invariant)

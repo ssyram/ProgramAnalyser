@@ -397,8 +397,10 @@ let rec private argAnalysis args acc =
         Flags.DEBUG <- true;
         loop args acc
     | table :: args when Option.isSome $ parseTab table ->
+        let table = Option.get $ parseTab table in
+        Flags.TABLE <- table;
         loop args {
-            acc with table = Option.get $ parseTab table 
+            acc with table = table
         }
     | solver :: args when Option.isSome $ parseSolver solver ->
         loop args {
