@@ -258,7 +258,7 @@ module private Impl = begin
         |> fun (lst, toBreak) -> AssignmentPath (guard, lst, toBreak)
     
     let enumAllAssnPaths program =
-        computePaths program.loopBody
+        pathListOfStmts program.loopBody
         |> enumerateEdges
         |> List.map edgeToAssnPath
     
@@ -300,7 +300,7 @@ module private Impl = begin
         let toTruncate = input.toTruncate
         let terminationType = input.terminationType
         let endLoopScoreAccuracy = input.endLoopScoreAccuracy
-        let analysisPaths = computePaths program.loopBody
+        let analysisPaths = pathListOfStmts program.loopBody
         // DEBUG: add this part to automatically generate other implicit conditions
         let program = addNewPreLoopGuardConditions program
         

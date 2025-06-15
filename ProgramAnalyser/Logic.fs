@@ -8,8 +8,11 @@ open ProgramAnalyser.Global
 open ProgramAnalyser.Objects
 open Utils
 
-// this file is about the logistical operations
+// this file is about the logical analysis
 
+
+/// The central structure to perform logical analysis.
+/// This encodes the propositional logic, which is a formula that can be true or false, free of quantifiers.
 type Proposition<'a> =
     | True
     | False
@@ -18,8 +21,6 @@ type Proposition<'a> =
     | Or of Proposition<'a> list
     | Not of Proposition<'a>
     | Implies of Proposition<'a> * Proposition<'a>
-//    | Forall of Variable list * Proposition<'a>
-//    | Exists of Variable list * Proposition<'a>
     static member MapAtom x map =
         let inline recur x = Proposition<_>.MapAtom x map in
         match x with
@@ -73,6 +74,7 @@ type Proposition<'a> =
             let strP2 = toString p2 in
             $"{strP1} -> {strP2}"
 
+/// The `forall` quantifier, which represents a proposition that holds for all variables in the list.
 type Forall<'a> = Forall of Variable list * Proposition<'a>
     with
     override x.ToString () =
@@ -89,10 +91,6 @@ type Forall<'a> = Forall of Variable list * Proposition<'a>
 let inline substPropositionVars prop map = Proposition<_>.SubsVars prop map
 
 let atomise x = Atom (true, x)
-
-///// Given an assignment statement, compute the weakest precondition of the proposition
-//let assnWeakestPrecondition assnStmt =
-//    Proposition<_>.SubstituteVars subs uncurry Map.add assnStmt Map.empty
 
 let rec lispPrintProposition prop : string =
     let inline recur prop = lispPrintProposition prop in
@@ -271,21 +269,6 @@ module Parser = begin
                 | [left; right] ->
                     Implies (recur left, recur right)
                 | _ -> failwith "Invalid implies expression"
-//            | "forall" ->
-//                match children with
-//                | NList varNodes :: [ propNode ] ->
-//                    let vars = List.map
-//                                   (function
-//                                    | NFunc (v, []) -> Variable v
-//                                    | _ -> failwith "Invalid variable") varNodes in
-//                    Forall (vars, recur propNode)
-//                | NFunc (var, varNodes) :: [ propNode ] ->
-//                    let vars = List.map
-//                                   (function
-//                                    | NFunc (v, []) -> Variable v
-//                                    | _ -> failwith "Invalid variable") varNodes in
-//                    Forall (Variable var :: vars, recur propNode)
-//                | _ -> failwith "Invalid forall function"
             | _ -> parseUnknown node
         | _ -> parseUnknown node
     
@@ -481,7 +464,7 @@ module DisjunctiveNormal = begin
         | LOr of NnfProp<'a> list
         | LAnd of NnfProp<'a> list
 
-    /// \/_i ( /\_j a_{i, j} )
+    /// \\/\_i ( /\\\_j a\_{i, j} )
     type DisjunctiveNormalProp<'a when 'a : comparison> =
         | DNFTrue
         | DNFFalse
@@ -579,11 +562,4 @@ let dnfPropToProp atomise dnfProp =
         |> List.filter isConsistent
         |> List.map (List.map atomise >> And)
         |> Or
-
-///// to valid DNF
-//let simplifyProposition prop =
-//    toNnf prop
-//    |> propToNnfProp
-//    |> nnfPropToDNF
-//    |> dnfPropToProp Atom
     

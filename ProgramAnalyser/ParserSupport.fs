@@ -2,7 +2,6 @@ module ProgramAnalyser.ParserSupport
 
 open ProgramAnalyser.Global
 open Objects
-open ProgramAnalyser.Objects
 open Utils
 
 type Statement =
@@ -39,7 +38,7 @@ type DistArg =
     
 type Distribution = Distribution of DistType * Numeric list
 
-let toDistribution name args =
+let mkDistribution name args =
     let distTy = DistType.Parse name in
     match distTy, args with
     | DNormal, [ x; y ] ->
@@ -65,36 +64,81 @@ type EndLoopScore =
     | ScoreDist of Distribution * ArithExpr
     | ScoreArith of ArithExpr
 
+type ProgVarType = PVTInt | PVTReal
+
+type RangeVal =
+    | RValNumeric of Numeric
+    | RValInf
+    | RValNegInf
+
+type Decl =
+    | DeclProgVar of pvType:ProgVarType * name:string * rangeLow:RangeVal * rangeHigh:RangeVal * init:ArithExpr
+    | DeclRandVar of name:string * dist:Distribution
+
 type Program = {
-    assnLst:Statement list
+    decls: Decl list
     invariant:BoolExpr
     loopGuard:BoolExpr
     loopBody:Statement list
-    mayEndScore:EndLoopScore option
-    mayIfScoreCond:BoolExpr option
-    retVar:Variable
+    outLoopStatements: Statement list
 }
 
-let mkProgram
-        (assnLst:Statement list,
-        preLoopGuard:BoolExpr,
-        loopGuard:BoolExpr,
-        loopBody:Statement list,
-        mayEndScore:EndLoopScore option,
-        mayIfScoreCond:BoolExpr option,
-        retVar:Variable) = {
-            assnLst = assnLst
-            invariant = preLoopGuard
+let validateProgram program =
+    // currently, the only check is that the outLoopStatments should not contain `break`
+    let rec checkNoBreak (st : Statement) =
+        match st with
+        | STBreak -> false
+        | STSkip -> true
+        | STAssn (_, _) -> true
+        | STInLoopScore _ -> true
+        | STIfBool lst ->
+            List.forall (fun (_, stLst) -> List.forall checkNoBreak stLst) lst
+        | STIfProb (_, lT, lF) ->
+            List.forall checkNoBreak lT && List.forall checkNoBreak lF
+    in
+    if not (List.forall checkNoBreak program.outLoopStatements) then
+        failwith "The out loop statements should not contain `break`."
+    else ()
+
+let mkProgram 
+        decls 
+        invariant 
+        loopGuard 
+        loopBody 
+        outLoopStatements : Program =
+    let program =
+        {   decls = decls
+            invariant = invariant
             loopGuard = loopGuard
             loopBody = loopBody
-            mayEndScore = mayEndScore
-            mayIfScoreCond = mayIfScoreCond
-            retVar = retVar
-        }
+            outLoopStatements = outLoopStatements }
+    in
+    validateProgram program;
+    program
+
+let mkPvDecl typStr name rangeLow rangeHigh initExpr =
+    let pvType =
+        match typStr with
+        | "int" -> PVTInt
+        | "real" -> PVTReal
+        | _ -> failwith $"Unknown program variable type: {typStr}."
+    in
+    DeclProgVar (pvType, name, rangeLow, rangeHigh, initExpr)
+let mkRvDecl randVarStr name dist =
+    if randVarStr <> "random" then
+        failwith $"Unknown random variable declaration: {randVarStr}."
+    else
+        DeclRandVar (name, dist)
+let mkRangeInf str =
+    if str = "inf" then RValInf
+    else failwith $"Invalid range value: {str}, expected 'inf'."
+let mkRangeNegInf str =
+    if str = "inf" then RValNegInf
+    else failwith $"Invalid range value: {str}, expected '-inf'."
 
 let shapeOptionalIfScoreStatement bExpr sT sF =
-    match (sT, sF) with
-    | (1, 0) -> Some bExpr
+    match sT, sF with
+    | 1, 0 -> Some bExpr
     | _ -> failwith "Invalid format: the last `if` of score can only accept format score(1) and score(0)."
 
 type RandomVarList = RandomVarList of (Variable * Distribution) list
@@ -126,15 +170,20 @@ let rec collectStatementUsedVars (st : Statement) =
         |> Set.unionMany
         |> Set.union (collectVars prob)
 
+let collectDeclUsedVars (decl : Decl) =
+    match decl with
+    | DeclProgVar (_, _, _, _, initExpr) -> collectVars initExpr
+    | DeclRandVar (_, dist) -> Set.empty
+
 /// collect all the variables that are read in the program
 let collectUsedVarsFromProgram (program : Program) =
     Set.unionMany [
 //        Set.unionMany $ List.map collectStatementUsedVars program.assnLst
         Set.unionMany $ List.map collectVars [ program.invariant; program.loopGuard ]
         // Set.add program.retVar Set.empty
-        Set.unionMany $ List.map collectStatementUsedVars program.loopBody
-        Set.unionMany $ List.map collectEndScoreLoopVars (Option.toList program.mayEndScore)
-        Set.unionMany $ List.map collectVars (Option.toList program.mayIfScoreCond)
+        Set.unionMany $ List.map collectStatementUsedVars program.loopBody;
+        Set.unionMany $ List.map collectDeclUsedVars program.decls;
+        Set.unionMany $ List.map collectStatementUsedVars program.outLoopStatements
     ]
 
 /// remove the purely updated variables while not being read variables from a statement
@@ -159,8 +208,8 @@ let private collectNonInvariantVars program =
     Set.unionMany [
         Set.unionMany $ List.map collectVars [ program.loopGuard ]
         Set.unionMany $ List.map collectStatementUsedVars program.loopBody
-        Set.unionMany $ List.map collectEndScoreLoopVars (Option.toList program.mayEndScore)
-        Set.unionMany $ List.map collectVars (Option.toList program.mayIfScoreCond)
+        Set.unionMany $ List.map collectDeclUsedVars program.decls
+        Set.unionMany $ List.map collectStatementUsedVars program.outLoopStatements
     ]
 let rec private removeNonMentionedVars bExpr mentionVars =
     let recur bExpr = removeNonMentionedVars bExpr mentionVars in
@@ -192,22 +241,16 @@ let private programRemoveNoUseInvariantVars program =
 let simplifyProgram (program : Program) =
     let rec loopTilNoVarRemoved program =
         let usedVars = collectUsedVarsFromProgram program in
-        let newAssnLst = removeUnusedVarsFromStatementList usedVars program.assnLst in
         let newLoopBody = removeUnusedVarsFromStatementList usedVars program.loopBody in
-        if newAssnLst = program.assnLst &&
+        let newEndLoopBody = removeUnusedVarsFromStatementList usedVars program.outLoopStatements in
+        if newEndLoopBody = program.outLoopStatements &&
            newLoopBody = program.loopBody then program
         else loopTilNoVarRemoved {
                  program with
-                     assnLst = newAssnLst
-                     loopBody = newLoopBody
+                    outLoopStatements = newEndLoopBody;
+                    loopBody = newLoopBody
              }
     in
     loopTilNoVarRemoved program
     |> programRemoveNoUseInvariantVars
 
-//type ConfigItem =
-//    | CIMap of string * string  // map item
-//    | CIRandomVariable of Variable * Distribution
-//type Config = Config of ConfigItem list
-//
-//type File = File of Config * Program

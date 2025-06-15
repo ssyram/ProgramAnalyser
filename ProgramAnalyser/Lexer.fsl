@@ -78,6 +78,7 @@ rule token = parse
 | ","                                   { COMMA }
 | "="                                   { ASSIGN }
 | ":="                                  { ASSIGN }
+| ":"                                   { COLON }
 | alphabet(alphabet|digit)*             { ID (System.String lexbuf.Lexeme) }
 | digit+                                  { INT (System.Int32.Parse(System.String lexbuf.Lexeme)) }
 | digit+('.'digit+)?(['e''E']digit+)?     { DOUBLE (ProgramAnalyser.Global.Numeric.Parse(System.String lexbuf.Lexeme)) }

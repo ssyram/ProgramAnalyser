@@ -61,7 +61,7 @@ let rec combineConst (aExpr : ArithExpr) =
         let lst = List.map getConst lst in
         match op with
         | OpAdd -> AConst $ List.sum lst
-        | OpMul -> AConst $ List.reduce (*) lst
+        | OpMul -> AConst $ List.reduce ( * ) lst
         | OpMinus ->
             // DEBUG: in minus, when there is ONLY ONE element, it is to negate the value
             match lst with
@@ -71,7 +71,7 @@ let rec combineConst (aExpr : ArithExpr) =
                    AConst $ hd - List.sum rest
         | OpDiv ->
             let hd, rest = List.head lst, List.tail lst in
-            AConst $ hd / List.fold (*) NUMERIC_ONE rest
+            AConst $ hd / List.fold ( * ) NUMERIC_ONE rest
     
 let arithExprToNormalisedPolynomial (aExpr : ArithExpr) : Polynomial =
     combineConst aExpr
@@ -96,7 +96,7 @@ let polynomialToArithExpr (Polynomial lst) =
             else
                 placeTerm $ AOperation (OpMul, AConst (abs c) :: List.map AVar vars)
     in
-    let (pos, neg) = List.foldBack backFindPosAndNeg lst ([], []) in
+    let pos, neg = List.foldBack backFindPosAndNeg lst ([], []) in
     match pos with
     | [] ->
         combineConst $

@@ -5,306 +5,28 @@ open Objects
 open ProgramAnalyser.Global
 open ProgramAnalyser.Logic
 open ProgramAnalyser.Logic.DisjunctiveNormal
-open ProgramAnalyser.ParserSupport
 open ProgramAnalyser.Polynomial
 open ProgramAnalyser.Utils
 
+// This module introduces a systematic division of the given assn-path in a non-nested loop.
+// It divides a path into a set of possible target locations and their corresponding conditions.
+// For example, given a path like:
+// [ X ::= X + r ]
+// with `r` being a bounded random variable, in range [0.5, 1]
+// and the loop guard: X < 10
+// the division produces:
+// [
+//      Single: X < 9: InLoop
+//      Joined: 9 <= X <= 9.5:
+//         0.5 <= r < 10 - X: InLoop
+//         10 - X <= r <= 1: OutLoop
+//      Single: X > 9.5: OutLoop
+// ]
 
-/// the statements that are to appear on the edge
-type EdgeStatement =
-    | ESAssign of Variable * ArithExpr
-    | ESScore of ArithExpr
-    | ESBreak
-    override x.ToString () =
-        match x with
-        | ESAssign (var, expr) -> $"{var}:={expr}"
-        | ESScore expr -> $"score({expr})"
-        | ESBreak -> "break"
 
-/// the supportive structure to help discover possible paths
-type private Node =
-    | NEnd
-    | NNormal of EdgeStatement * Node
-    | NProb of (ArithExpr * Node) list
-    | NIf of (BoolExpr * Node) list
-
-let rec private appendNode above below =
-    match above with
-    | NEnd -> below
-    | NNormal (es, node) -> NNormal (es, appendNode node below)
-    | NProb lst ->
-        NProb $ List.map (BiMap.sndMap (flip appendNode below)) lst
-    | NIf lst ->
-        NIf $ List.map (BiMap.sndMap (flip appendNode below)) lst
-
-let rec private statementsToTree statements =
-    match statements with
-    | [] -> NEnd
-    | stmt :: lst ->
-        let rest = statementsToTree lst in
-        match stmt with
-        | STSkip -> rest
-        | STBreak -> NNormal (ESBreak, rest)
-        | STAssn (var, expr) -> NNormal (ESAssign (var, expr), rest)
-        | STInLoopScore expr -> NNormal (ESScore expr, rest)
-        | STIfBool lst ->
-            NIf $ flip List.map lst (fun (cond, statements) ->
-                (cond, appendNode (statementsToTree statements) rest))
-        | STIfProb (prob, lT, lF) ->
-            [ (prob, lT)
-              (AOperation (OpMinus, [AConst (Numeric 1); prob]), lF) ]
-            |> List.map (fun (prob, statements) ->
-                (prob, appendNode (statementsToTree statements) rest))
-            |> NProb            
-
-let rec simplyBoolExpr bExpr =
-    match bExpr with
-    | BAnd (b1, b2) ->
-        match (simplyBoolExpr b1, simplyBoolExpr b2) with
-        | (b1, BTrue) -> b1
-        | (BTrue, b2) -> b2
-        | (BFalse, _) -> BFalse
-        | (_, BFalse) -> BFalse
-        | (b1, b2) -> BAnd (b1, b2)
-    | _ -> bExpr
-
-type ConditionalPath =
-    | ConditionalPath of
-        cond:BoolExpr *
-        statements:EdgeStatement list *
-        nextParts:ProbPath list
-and ProbPath =
-    | ProbPath of
-        prob:ArithExpr *
-        statements:EdgeStatement list *
-        nextParts:ConditionalPath list
-
-let rec private collectConditionalPaths node =
-    match node with
-    | NEnd -> [ ConditionalPath (BTrue, [], []) ]
-    | NNormal (es, next) ->
-        let addOne some =
-            match some with
-            | ConditionalPath (guard, ess, nextParts) ->
-                ConditionalPath (guard, es :: ess, nextParts)
-        in
-        List.map addOne $ collectConditionalPaths next
-    | NIf lst ->
-        let mapper (guard, nextNode) =
-            let restPaths = collectConditionalPaths nextNode in
-            List.map (fuseGuardToPath guard) restPaths
-        in
-        List.concat $ List.map mapper lst
-    | NProb lst ->
-        let probPaths =
-            let mapper (prob, node) =
-                collectProbPaths node
-                |> List.map (fuseProbToPath prob)
-            in
-            List.concat $ List.map mapper lst
-        in
-        [ ConditionalPath (BTrue, [], probPaths) ]
-and private collectProbPaths node =
-    match node with
-    | NEnd -> [ ProbPath (AConst NUMERIC_ONE, [], []) ]
-    | NNormal(es, node) ->
-        let addOne (ProbPath (prob, ess, condPaths)) =
-            ProbPath (prob, es :: ess, condPaths)
-        in
-        List.map addOne $ collectProbPaths node
-    | NProb lst ->
-        let mapper (prob, node) =
-            collectProbPaths node
-            |> List.map (fuseProbToPath prob)
-        in
-        List.concat $ List.map mapper lst
-    | NIf lst ->
-        let condPaths =
-            let mapper (guard, node) =
-                collectConditionalPaths node
-                |> List.map (fuseGuardToPath guard)
-            in
-            List.concat $ List.map mapper lst
-        in
-        [ ProbPath (AConst NUMERIC_ONE, [], condPaths) ]
-and private fuseProbToPath prob (ProbPath (oriProb, ess, condPaths)) =
-    ProbPath (AOperation (OpMul, [prob; oriProb]), ess, condPaths)
-and private fuseGuardToPath guard (ConditionalPath (oriGuard, ess, nextParts)) =
-    ConditionalPath (BAnd (guard, oriGuard), ess, nextParts)
-    
-type Edge = Edge of BoolExpr * ArithExpr * EdgeStatement list
-    
-let rec collectEdgeStmtFromCondPath (ConditionalPath (guard, ess, nextParts)) =
-    match nextParts with
-    | [] -> [ Edge (guard, AConst NUMERIC_ONE, ess) ]
-    | lst -> List.map collectEdgeStmtFromProbPath lst
-             |> List.concat
-             |> List.map (fun (Edge (guard', p, lst)) -> Edge (BAnd (guard, guard'), p, ess ++ lst))
-and collectEdgeStmtFromProbPath (ProbPath (p, ess, nextParts)) : Edge list =
-    match nextParts with
-    | [] -> [ Edge (BTrue, p, ess) ]
-    | lst -> List.map collectEdgeStmtFromCondPath lst
-             |> List.concat
-             |> List.map (fun (Edge (guard, p', lst)) -> Edge (guard, AOperation (OpMul, [ p; p' ]), ess ++ lst))
-    
-    
-type PathList =
-    | PLCond of ConditionalPath list
-    | PLProb of ProbPath list
-    
-/// to make sure no updated variable is further inquired in `if` statement
-/// A temporary function to ensure validity of format and hence the soundness of the algorithm
-let private checkNoIfForUpdatedVars (node : Node) : bool =
-    let rec containsVar toFind aExpr =
-        match aExpr with
-        | AConst _ -> false
-        | AVar (Variable varName) -> Set.contains varName toFind
-        | AOperation (_, lst) ->
-            List.exists (containsVar toFind) lst
-    in
-    let rec guardNotContainingUpdatedVars updatedVars guard =
-        match guard with
-        | BCompare (_, a1, a2) ->
-            not (containsVar updatedVars a1) && not (containsVar updatedVars a2)
-        | BAnd (g1, g2) ->
-            guardNotContainingUpdatedVars updatedVars g1 &&
-            guardNotContainingUpdatedVars updatedVars g2
-        | BTrue -> true
-        | BFalse -> true
-    in
-    let rec checkNoFurtherIf updatedVars node =
-        match node with
-        | NEnd -> true
-        | NNormal (ESAssign((Variable varName), _), node) ->
-            checkNoFurtherIf (Set.add varName updatedVars) node
-        | NNormal ((ESScore _), node) ->
-            checkNoFurtherIf updatedVars node
-        | NNormal (ESBreak, _) -> true  // after `break`, there is no need to check 
-        | NProb lst ->
-            List.map snd lst
-            |> List.forall (checkNoFurtherIf updatedVars)
-        | NIf lst ->
-            let check (guard, node) =
-                guardNotContainingUpdatedVars updatedVars guard &&
-                checkNoFurtherIf updatedVars node
-            in
-            List.forall check lst
-    in
-    checkNoFurtherIf Set.empty node
-    
-let fuseStmtListToProbPath ess path =
-    match path with
-    | ProbPath (prob, ess', nextParts) -> ProbPath (prob, ess ++ ess', nextParts)
-    
-let checkValidPathList pathList =
-    let checkProbPath (ProbPath (_, _, lst)) = List.isEmpty lst in
-    let checkCondPath (ConditionalPath (_, _, lst)) = List.forall checkProbPath lst in
-    match pathList with
-    | PLCond lst -> List.forall checkCondPath lst
-    | PLProb lst -> List.forall checkProbPath lst
-    
-let computePaths statements =
-    let node = statementsToTree statements in
-    if not $ checkNoIfForUpdatedVars node then
-        failwith "The current version supports only update once in a round in the loop.";
-    let quasiResult =
-        match collectConditionalPaths node with
-        | [ (ConditionalPath (BTrue, ess, nextParts)) ] when nextParts.Length > 0 ->
-            // if no branch at first
-            // it is essentially a list of the ProbPaths
-            // add the prepending elements into the ProbPaths
-            PLProb $ List.map (fuseStmtListToProbPath ess) nextParts
-        | lst ->
-            PLCond lst
-    in
-    if not $ checkValidPathList quasiResult then
-        failwith "The current version supports at most 2 level of nesting `if`.";
-    quasiResult
-
-//let fuseStmtToPath stmt path =
-//    match path with
-//    | PConditional (ConditionalPath (guard, sts, next)) ->
-//        PConditional (ConditionalPath (guard, stmt :: sts, next))
-//    | PProb (ProbPath (prob, sts, next)) ->
-//        PProb (ProbPath (prob, stmt :: sts, next))
-//    | PUnknown sts -> PUnknown $ stmt :: sts
-//
-//let fuseListOfStmtToPath toAdd path =
-//    match path with
-//    | PConditional (ConditionalPath (guard, sts, next)) ->
-//        PConditional (ConditionalPath (guard, toAdd ++ sts, next))
-//    | PProb (ProbPath (prob, sts, next)) ->
-//        PProb (ProbPath (prob, toAdd ++ sts, next))
-//    | PUnknown sts -> PUnknown $ toAdd ++ sts
-//
-///// to append the path p1 before p2
-//let rec mergePath p1 p2 : Path =
-//    match p1 with
-//    | PUnknown sts ->
-//        fuseListOfStmtToPath sts p2
-//    | PConditional (ConditionalPath (guard, sts, [])) ->
-//        match p2 with
-//        | PConditional (ConditionalPath (g2, sts', next)) ->
-//            PConditional (ConditionalPath (BAnd (guard, g2), sts ++ sts', next))
-//        | PProb pPath ->
-//            PConditional (ConditionalPath (guard, sts, [pPath]))
-//        | PUnknown sts' ->
-//            PConditional (ConditionalPath (guard, sts ++ sts', []))
-//    | PProb (ProbPath (prob, sts, [])) ->
-//        match p2 with
-//        | PProb (ProbPath (prob', sts', next)) ->
-//            PProb (ProbPath (AOperation (OpMul, [prob; prob']), sts ++ sts', next))
-//        | PConditional condPath ->
-//            PProb (ProbPath (prob, sts, [condPath]))
-//        | PUnknown sts' ->
-//            PProb (ProbPath (prob, sts ++ sts', []))
-//    // if this part is not the last part, go to the last part to append
-//    | PConditional (ConditionalPath (guard, sts, lst)) when not lst.IsEmpty ->
-//        match mergePath (PProb probPath) p2 with
-//        | PProb pPath -> PConditional (ConditionalPath (guard, sts, Some pPath))
-//        | _ -> IMPOSSIBLE ()
-//    | PProb (ProbPath (prob, sts, Some condPath)) ->
-//        match mergePath (PConditional condPath) p2 with
-//        | PConditional condPath -> PProb (ProbPath (prob, sts, Some condPath))
-//        | _ -> IMPOSSIBLE ()
-//
-///// to add the guard is the same as join an empty path with the target guard with the target path
-//let fuseGuardToPath guard path =
-//    mergePath (PConditional (ConditionalPath (guard, [], None))) path
-//
-///// to add the probability is the same as join an empty path with the target probability with the target path
-//let fuseProbToPath prob path =
-//    mergePath (PProb (ProbPath (prob, [], None))) path
-//
-///// given a list of Parse Statement, returns the actual running paths
-//let rec computePaths statements =
-//    /// an abstract function to compute the branches
-//    let computeBranches branches fuseBranchHeadToPath rest =
-//        branches
-//        |> List.map (fun (head, content) ->
-//            computePaths content
-//            |> List.map (fuseBranchHeadToPath head)
-//            // monad operation: for each path from local and from rest, join them
-//            |> List.map (flip List.map rest << mergePath)  // (fun path -> (List.map (mergePath path) rest))
-//            |> List.concat)
-//        |> List.concat
-//    in
-//    match statements with
-//    | [] -> [ PUnknown [] ]
-//    | statement :: lst ->
-//        let rest = computePaths lst in
-//        match statement with
-//        | STSkip -> rest
-//        | STAssn(var, expr) -> List.map (fuseStmtToPath (ESAssign (var, expr))) rest
-//        | STInLoopScore expr -> List.map (fuseStmtToPath (ESScore expr)) rest
-//        | STIfBool lst ->
-//            computeBranches lst fuseGuardToPath rest
-//        | STIfProb (prob, contentTrue, contentFalse) ->
-//            let branches = [
-//                (prob, contentTrue)
-//                (AOperation (OpMinus, [AConst (Numeric 1); prob]), contentFalse)
-//            ] in
-//            computeBranches branches fuseProbToPath rest
+// --------------------------------------------- Greater-or-Equal Conjunction ---------------------------------------------
+// This part is the infrastructure of handling the basic greater-or-equal conjunctions
+// This is the target output format of the propositions
 
 /// greater-or-equal conjunction
 /// which is of form:
@@ -331,9 +53,9 @@ type GeConj =
 /// a confirmation of loss -- add this to hint that there is a loss here
 type LossConfirm = LossConfirm
 
-/// MAY HAVE ACCURACY LOSS
+/// MAY HAVE ACCURACY LOSS </br>
 /// SHOULD CONFIRM THE LOSS HERE
-let cmpToArithExprList (LossConfirm) (op, a1, a2) =
+let cmpToArithExprList LossConfirm (op, a1, a2) =
     let isIntVar (Variable v) = Set.contains v Flags.INT_VARS in
     let isInt = function | (AConst c) -> c.IsInt | _ -> false in
     match (op, a1, a2) with
@@ -401,6 +123,11 @@ let genBoundsConjCompsFromItemBoundMap itemBoundMap =
     |> Seq.concat
     |> List.ofSeq
     
+
+// ------------------------------------------------- Decomposition of Propositions ---------------------------------------------
+
+// a generally helper module for decomposing the propositions
+// used by functions below this module
 #nowarn "58"
 module Decomposition = begin
 
@@ -449,48 +176,6 @@ module Decomposition = begin
             |> List.choose (simplifyConsistent revMap)
             |> List.map ConjCmps
             |> DisjConjCmps
-
-    //type ValWithInfty =
-    //    | NegInfty
-    //    | Number of Numeric * hasEq:bool
-    //    | PosInfty
-    //
-    ///// (c <= obj) < (c < obj)
-    //let lowerLe (l1 : ValWithInfty) l2 =
-    //    match l1, l2 with
-    //    | Number (c1, t1), Number (c2, t2) when c1 = c2 -> t2 <= t1  // REVERSE
-    //    | _ -> l1 <= l2
-    //let upperLe u1 u2 = u1 <= u2
-    ///// whether there is a period, so if they are the same, Le holds ONLY when
-    //let isNonVoidPeriod l u =
-    //    match l, u with
-    //    | Number (c1, t1), Number (c2, t2) when c1 = c2 -> t1 && t2
-    //    | _ -> l <= u
-    ///// if there is a gap -- if there is a possible value between the two
-    ///// up: upper bound of the previous (lower) range
-    ///// ln: lower bound of the next (higher) range
-    //let hasGapBetween up ln =
-    //    match up, ln with
-    //    | Number (c1, t1), Number (c2, t2) when c1 = c2 -> not t1 && not t2
-    //    | _ -> up < ln
-    //
-    //let private convertLowerBound l =
-    //    match l with
-    //    | None -> NegInfty
-    //    | Some (v, hasEq) -> Number (v, hasEq)
-    //let private convertUpperBound u =
-    //    match u with
-    //    | None -> PosInfty
-    //    | Some (v, hasEq) -> Number (v, hasEq)
-    //let private convertRange (l, u) =
-    //    (convertLowerBound l, convertUpperBound u)
-    //let private backToRange (vl, vu) =
-    //    match vl, vu with
-    //    | PosInfty, _ | _, NegInfty -> failwith "INTERNAL ERROR: impossible range."
-    //    | NegInfty, PosInfty -> (None, None)
-    //    | NegInfty, Number (c, hasEq) -> (None, Some (c, hasEq))
-    //    | Number (c, than), PosInfty -> (Some (c, than), None)
-    //    | Number (l, t_l), Number (u, t_u) -> (Some (l, t_l), Some (u, t_u))
 
     let private hasGapBetween (UpperBound up) (LowerBound ln) =
         match up, ln with
@@ -598,6 +283,8 @@ module Decomposition = begin
 end
 #warnon "58"
     
+// --------------------------------------------- Usage of module `Decomposition` ---------------------------------------------
+
 let conjCmpsToCompareProp (ConjCmps lst) =
     match List.map (Compare >> atomise) lst with
     | [] -> True
@@ -621,24 +308,21 @@ let decomposePropToValidExclusiveConjCmps (proposition : Proposition<Compare>) =
     |> unwrap
     |> List.filter (fun cmps ->
         checkSAT (mkQueryCtx ()) [ conjCmpsToCompareProp cmps ])
-    // DEBUG: such unification may lead to error
-//    // finally, try to unify as much as possible the final result
-//    |> Decomposition.tryMerge
-    
-//let inline decomposePropToValidExclusiveConjCmps prop =
-//    decomposePropToValidExclusiveConjCmps_full true prop
+
+
+
+
+
+
+// --------------------------------------------- Location and NextLocInfo ---------------------------------------------
 
 type Location =
-    | LOne
-    | LNegOne
-    | LZero
-    | LNegTen
+    | InLoop
+    | OutLoop
     override x.ToString () =
         match x with
-        | LOne -> "1"
-        | LNegOne -> "-1"
-        | LZero -> "0"
-        | LNegTen -> "-10"
+        | InLoop -> "InLoop"
+        | OutLoop -> "OutLoop"
 
 /// should collect the conjunction of comparison list --
 /// ONE STEP before the GeConj, in order to preserve the original form as well as also trivial to
@@ -649,55 +333,6 @@ type NextLocInfo =
                 //            [ trueLoc , [ randVar ,   lower   ,   upper  ] ]
                 concreteRange:(Location * (Variable * ArithExpr * ArithExpr) list) list
 
-let assnWeakestPrecondition assnPair prop =
-    substPropositionVars prop $ uncurry Map.add assnPair Map.empty
-
-/// compute the weakest precondition for an assignment list
-let assnPathWp path prop =
-    List.foldBack assnWeakestPrecondition path prop
-
-//let rec simplifyArithExpr aExpr =
-//    match aExpr with
-//    | AVar _ | AConst _ -> aExpr
-//    | AOperation (op, lst) ->
-//        match List.map simplifyArithExpr lst with
-//        | [] -> AOperation (op, [])
-//        | [ x ] ->
-//            match op with
-//            | OpMinus ->
-//                match x with
-//                | AConst c -> AConst (-c)
-//                | _ -> AOperation (OpMinus, [ x ])
-//            | _ -> x
-//        | lst ->
-//            let combine initC cOp =
-//                let backFolder v (c, acc) =
-//                    match v with
-//                    | AConst c' -> (cOp c c', acc)
-//                    | _ -> (c, v :: acc)
-//                in
-//                let c, acc = List.foldBack backFolder lst (initC, []) in
-//                if c = initC then acc
-//                else AConst c :: acc
-//            in
-//            match op with
-//            | OpAdd ->
-//                match combine NUMERIC_ZERO (+) with
-//                | [] -> AOperation (OpAdd, [])
-//                | [ x ] -> x
-//                | lst ->
-//                    let collectMinus
-//            | OpMul ->
-//                match combine NUMERIC_ONE (*) with
-//                | [] -> AOperation (OpMul, [])
-//                | [ x ] -> x
-//                | lst -> AOperation (OpMul, lst)
-//            | OpMinus ->
-//                let head, rest = List.head lst, List.tail lst in
-//                AOperation (OpMinus, head :: combine NUMERIC_ZERO (+))
-//            | OpDiv ->
-//                let head, rest = List.head lst, List.tail lst in
-//                AOperation (OpDiv, head :: combine NUMERIC_ONE (*))
                 
 
 /// simplification method:
@@ -741,8 +376,10 @@ let simplifyGeConj (GeConj lst) =
     |> List.map polynomialToArithExpr
     |> GeConj
 
-/// normalise the arithmetic expression to a unique simplified form:
+/// normalise the arithmetic expression to a *unique* simplified form:
+/// ```
 /// c + \sum_i c_i \prod_j v_{i, j}
+/// ```
 let normaliseArithExpr (aExpr : ArithExpr) =
     arithExprToNormalisedPolynomial aExpr
     |> polynomialToArithExpr
@@ -841,86 +478,60 @@ let propToValidGeConj confirm prop =
 /// also, all of them will pass the SAT check to make sure possibility
 let propToValidConjCmpList toMerge prop =
     if not $ checkSAT (mkQueryCtx ()) [ prop ] then [] else
-//    let lst =
     decomposePropToValidExclusiveConjCmps prop
     |> if toMerge then tryMergeConjCmps else id
-//    in
-//    List.filter (fun (ConjCmps lst) ->
-//        checkSAT (mkQueryCtx ()) $ List.map (Compare >> atomise) lst) lst
     
-//let conjGeConj (GeConj l1) (GeConj l2) = GeConj (l1 ++ l2)
+/// given a set of updates, compute the weakest pre-condition of the given proposition
+let wpOfProp updates prop =
+    substPropositionVars prop updates
 
 type PathDivisionArgs = {
-    path : (Variable * ArithExpr) list
-    /// the fixed content when the path is executed
-    /// but it may not necessarily hold after the execution
-    /// so this part will not take part in the weakestPrecondition computation
-    /// for example, the loop invariant is part of this -- although it will not bother the result
-    /// even if it is placed into loopGuard
-    /// however, the segment guard must be placed here
-    fixedGuard : Proposition<Compare>
-    loopGuard : Proposition<Compare>
-    mayEndIfScoreGuard : Proposition<Compare> option
-    randVarRanges : Map<Variable, Numeric * Numeric>
-    takeZeroShortcut : bool
+    /// the updates that will be applied to the variables
+    /// Notably, the update is *ATOMIC*, i.e., for each `v |-> e` within:
+    /// - The variables in RHS `e` denotes the variables BEFORE the update
+    /// - The variables in LHS `v` denotes the variables AFTER the update
+    /// 
+    /// There is no concept of ORDER in the updates.
+    /// E.g., given updates: `{ X ::= X + 1; Y ::= X + 2 }`,
+    /// then the `X` in `Y ::= X + 2` is the value of `X` before the update.
+    /// 
+    /// For example, if `X = 1 && Y = 2` before the update,
+    /// then after the update, `X = 2 && Y = 3`;
+    /// instead of `X = 2 && Y = 4`.
+    updates : Map<Variable, ArithExpr>;
+    /// The guard that must be satisfied before the execution of the updates, but are NOT required to hold after the updates.
+    /// This will NOT be used for the `wp` computation.
+    /// It essentially contains:
+    /// 1) the loop invariant, and,
+    /// 2) the path condition (also named segment guard) of the path behind the updates.
+    fixedGuard : Proposition<Compare>;
+    /// the loop guard that must be taken into account during `wp` computation
+    loopGuard : Proposition<Compare>;
+    /// The ranges of the random variables, used extensively in the computation
+    randVarRanges : Map<Variable, Numeric * Numeric>;
 }
-
-let rec smoothNegatives prop =
-    match prop with
-    | True | False | Atom (true, _) -> prop
-    | Atom (false, cmp) -> Atom (true, negateCompare cmp)
-    | And lst -> And $ List.map smoothNegatives lst
-    | Or lst -> Or $ List.map smoothNegatives lst
-    | Not _ | Implies _ -> IMPOSSIBLE ()  // after simplification, there should not be such
-
 let simplifyConjCmps conjCmps =
     normaliseConjCmps conjCmps
     |> collectTightRanges
     |> Option.map (genBoundsConjCompsFromItemBoundMap >> ConjCmps)
 
-/// Will Combine the result
-let private simplifyCmpProp toMerge prop =
-    propToValidConjCmpList toMerge prop
-    |> List.map conjCmpsToCompareProp
-    |> function
-    | [] -> False
-    | [ x ] -> x
-    | lst -> Or lst
-//    let rec smoothNegatives prop =
-//        match prop with
-//        | True | False | Atom (true, _) -> prop
-//        | Atom (false, cmp) -> Atom (true, negateCompare cmp)
-//        | And lst -> And $ List.map smoothNegatives lst
-//        | Or lst -> Or $ List.map smoothNegatives lst
-//        | Not _ | Implies _ -> IMPOSSIBLE ()  // after simplification, there should not be such
-//    in
-//    simplifyProposition prop
-//    |> smoothNegatives
-
 /// A General Division -- no additional assumption required
-/// a divided State-Monad-like unit
-/// a path of significance in the context is essentially just a list of update statements
-/// g_\ell
-/// g_s
-/// the random variable map with (lower, upper)
 type private PathDivisionImpl(input) =
     // basic information as input
-    let path = input.path
+    let updates = input.updates
     // DEBUG: handle the case generally
     let loopGuard = input.loopGuard
-    let mayEndIfScoreGuard = input.mayEndIfScoreGuard
     let randVarRanges = input.randVarRanges
-    let shortcut = input.takeZeroShortcut
     /// the loop guard must also be in the fixed guard condition --
     /// this is because before the execution, the path must also satisfy the loop guard
     let fixedGuard = And [ input.fixedGuard; loopGuard ]
     
     // pre-computed weakest preconditions
     /// wp(g_l)
-    let wpLoopGuard = assnPathWp path loopGuard
+    let wpLoopGuard = wpOfProp updates loopGuard
     let randVars = Set.ofSeq $ Map.keys randVarRanges
     
-    let wp(prop) = assnPathWp path prop
+    let wp prop = wpOfProp updates prop
 
     /// the return value can be consider to be a Seq from map
     /// which means the variable is unique
@@ -994,50 +605,20 @@ type private PathDivisionImpl(input) =
         | [ x ] -> x
         | lst -> Or lst
     
+    /// After the update, the result still satisfies the loop guard, hence the next execution remains in the loop
     /// g_f /\ wp(g_l)
-    /// OR
-    /// g_f /\ wp(g_l /\ g_s) if has g_s and shortcut
-    let oneLocCondition =
+    let inLoopCondition =
         lazy
-        simplifyCmpProp true $
-        match mayEndIfScoreGuard with  // if needed and requires shortcut
-        | Some endScoreGuard when shortcut ->
-            And [ fixedGuard  // g_f
-                  wp(And [ loopGuard; endScoreGuard ]) ]  // wp(g_l /\ g_s)
-        | _ -> And [ fixedGuard; wpLoopGuard ]  // g_f /\ wp(g_l)
+        simplifyCmpProp true $ And [ fixedGuard; wpLoopGuard ]  // g_f /\ wp(g_l)
+    /// After the update, the result goes out from the loop --- hence the loop guard is no longer satisfied
     /// g_f /\ wp(~g_l)
-    let negOneLocCondition =
+    let outLoopCondition =
         lazy
-        simplifyCmpProp true $
-        And [ fixedGuard; wp(Not loopGuard) ]
-    /// g_f /\ wp(~g_s) if shortcut
-    /// g_f /\ wp(~g_l /\ ~g_s) if NO shortcut
-    let zeroLocCondition =
-        lazy
-        simplifyCmpProp true $
-        let endScoreGuard = mayEndIfScoreGuard.Value in
-        if shortcut then And [ fixedGuard; wp(Not endScoreGuard) ]
-        else And [ fixedGuard; wp(And [
-            Not loopGuard
-            Not endScoreGuard
-        ]) ]
-    /// g_f /\ wp(~g_l /\ g_s)
-    let negTenLocCondition =
-        lazy
-        simplifyCmpProp true $
-        let endScoreGuard = mayEndIfScoreGuard.Value in
-        And [
-            fixedGuard
-            wp(And [
-                Not loopGuard
-                endScoreGuard
-            ])
-        ]
+        simplifyCmpProp true $ And [ fixedGuard; wp(Not loopGuard) ]
     
-    /// given target
-    /// automatically fill the information about random variables
-    /// Input: `target`
-    /// Output: quantifier eliminated result for `forall rvs. Range(rvs) -> target`
+    /// given a target, automatically fill the information about random variables,
+    /// - Input: `target` proposition
+    /// - Output: quantifier eliminated result for `forall rvs. Range(rvs) -> target`
     let qeForallTarget target =
         let varRanges = getInvolvedRandVarRanges randVarRanges target in
         match varRanges with
@@ -1054,19 +635,22 @@ type private PathDivisionImpl(input) =
     // helper functions to generate the stuff
     // convert the requirement to be more general and tackle with module `Logic`
     // for all single cases, one can merge
-    let initOneLocGuards = lazy simplifyCmpProp true (qeForallTarget oneLocCondition.Value)
-    let initNegOneLocGuards = lazy simplifyCmpProp true (qeForallTarget negOneLocCondition.Value)
-    let initZeroLocGuards = lazy simplifyCmpProp true (qeForallTarget zeroLocCondition.Value)
-    let initNegTenLocGuards = lazy simplifyCmpProp true (qeForallTarget negTenLocCondition.Value)
+    
+    // NOTE: differences between *Condition* and *Guard*:
+    // - Condition: the raw condition *with random variables*, two conditions may be compatible
+    //   This compatibility stems from the random variables.
+    // - Guard: the condition that is *free of random variables*, and must be incompatible with the other guard
+    //   The `Guard` is used for Single location generation, as a guard *exclusively* leads to the location.
+    // Guards are obtained by eliminating the random variables from the conditions.
+    let inLoopGuards = lazy simplifyCmpProp true (qeForallTarget inLoopCondition.Value)
+    let outLoopGuards = lazy simplifyCmpProp true (qeForallTarget outLoopCondition.Value)
     
     /// location guard is the guard that EXCLUSIVELY leads to this location
     /// REGARDLESS OF the values of the random variables (in the given ranges)
     let findInitLocGuard loc =
         match loc with
-        | LOne -> initOneLocGuards.Value
-        | LNegOne -> initNegOneLocGuards.Value
-        | LZero -> initZeroLocGuards.Value
-        | LNegTen -> initNegTenLocGuards.Value
+        | InLoop -> inLoopGuards.Value
+        | OutLoop -> outLoopGuards.Value
     
     let findGuardsForLoc loc =
         let initLocGuard = findInitLocGuard loc in
@@ -1078,59 +662,6 @@ type private PathDivisionImpl(input) =
     let genSingle loc =
         let guards = findGuardsForLoc loc in
         List.map (fun guard -> NLSingle (loc, guard)) guards
-    
-//    let analyseGuardRandVarConds conjCmps op =
-//        // firstly normalise the guard to get better guard to analyse
-//        let op = simplifyGeConj op in
-//        // then find all the random variables and then find upper and lower bounds
-//        // assume that there is at most ONE found upper and lower bound except the given one
-//        Set.intersect (collectVars op) randVars
-//        |> Set.toList
-//        |> List.map (fun var ->
-//            let varRangeProp = genRandVarRangesProp [ (var, Map.find var randVarRanges) ] in
-//            let getBound isLower bounds =
-//                let folder (cst, sym) newEl =
-//                    match combineConst newEl with
-//                    | AConst c ->
-//                        match cst with
-//                        | None -> (Some c, sym)
-//                        | Some c' -> (Some (if isLower then max c c' else min c c'), sym)
-//                    | a ->
-//                        match sym with
-//                        | None -> (cst, Some a)
-//                        | Some ori ->
-//                            let gt = Atom (true, Compare (CmpGt, a, ori)) in
-//                            let lt = Atom (true, Compare (CmpLt, a, ori)) in
-//                            let canGt =
-//                                checkSAT (mkQueryCtx ()) [
-//                                    gt
-//                                    conjCmpsToCompareProp conjCmps
-//                                    varRangeProp
-//                                ]
-//                            in
-//                            let canLt =
-//                                checkSAT (mkQueryCtx ()) [
-//                                    lt
-//                                    conjCmpsToCompareProp conjCmps
-//                                    varRangeProp
-//                                ]
-//                            in
-//                            if canGt && canLt then
-//                                failwith "Currently support only ONE symbolic bound.";
-//                            if canGt then
-//                                 if isLower then (cst, Some ori) else (cst, Some a)
-//                            else if isLower then (cst, Some a) else (cst, Some ori)
-//                in
-//                match List.fold folder (None, None) bounds with
-//                | (_, Some bound) -> bound
-//                | (Some c, _) -> AConst c
-//                | (None, None) -> IMPOSSIBLE ()
-//            in
-//            let dfLower, dfUpper = Map.find var randVarRanges in
-//            let lower, upper = extractUpperAndLowerBounds var op in
-//            let lower = getBound true (AConst dfLower :: lower) in
-//            let upper = getBound false (AConst dfUpper :: upper) in
-//            (var, lower, upper))
     
     /// given a clause of the form "P1 ~1 c1' /\ ... /\ Pi ~i ci'"
     /// where Pi is an expression, ci is a constant and ~i is the comparator
@@ -1157,25 +688,8 @@ type private PathDivisionImpl(input) =
     
     let getLocCondition loc =
         match loc with
-        | LOne -> oneLocCondition.Value
-        | LNegOne -> negOneLocCondition.Value
-        | LZero -> zeroLocCondition.Value
-        | LNegTen -> negTenLocCondition.Value
-    
-//    let getRandVarRanges randVars =
-//        Seq.map (flip Map.find randVarRanges) randVars
-//        |> Seq.zip randVars
-//        |> Map.ofSeq
-    
-//    let collectCmpVars (_, a1, a2) =
-//        Set.union
-//            (collectArithExprVars a1)
-//            (collectArithExprVars a2)
-    
-//    let getConjCmpsInvolvedRandVars (ConjCmps lst) =
-//        List.map collectCmpVars lst
-//        |> Set.unionMany
-//        |> Set.intersect randVars
+        | InLoop -> inLoopCondition.Value
+        | OutLoop -> outLoopCondition.Value
     
     let rec arithContainsRandVar aExpr =
         match aExpr with
@@ -1186,16 +700,16 @@ type private PathDivisionImpl(input) =
     /// 1. should remove those impossible by the range of rand vars
     /// 2. should remove the meaningless bound-generating items -- those already implied
     ///
-    /// Hence, returns: [(full condition, rand var condition)]
-    /// where rand-var-condition is part of the full-condition with rand-var inside
-    /// The full condition is given by one clause in the disjunctive normal form of `basicGuard /\ locGuard`
+    /// Hence, returns: `[(full condition, rand var condition)]`
+    /// where rand-var-condition is *part of* the full-condition with rand-var inside
+    /// A full condition is *one* clause in the disjunctive normal form of `basicGuard /\ locGuard`
     /// for the given `loc`
     ///
     /// This function's functionality:
     /// 1. get the full proposition as basicGuard /\ locGuard
     /// 2. use each clause of the disjunctive normal form of the proposition as full-condition
     /// 3. filter those conditions when they are not satisfiable
-    /// 4. for those satisfiable, select the part with the random variables inside as the second element
+    /// 4. for those satisfiable clause, select the part with the random variables inside as the second element
     /// 5. if the second element is meaningless (implied), remove the whole item
     let genValidRandVarConditions basicGuard loc =
         let condition = getLocCondition loc in
@@ -1241,6 +755,11 @@ type private PathDivisionImpl(input) =
     
     let isConst = function AConst _ -> true | _ -> false
     
+    /// combine the lower and upper bound conditions
+    /// add the new guarantee that the lower bound is less than or equal to the upper bound
+    /// i.e., the bound is valid
+    /// 
+    /// Note: this function simply combines but does not check
     let combineConditions (((lower, lEq as l), lCond), ((upper, uEq as u), uCond)) =
         let newCmp = ConjCmps [
                 // if not (isConst lower || isConst upper) then
@@ -1249,65 +768,31 @@ type private PathDivisionImpl(input) =
                     | true, true -> CmpLe
                     | _, _       -> CmpLt
                 in
-                (comparator, lower, upper)
+                comparator, lower, upper
             ] in
-        (l, u, newCmp + lCond + uCond)
-    
-    // /// given that r ~ bv1 && r ~ bv2 where if `isLower` then ~ is >/>= otherwise ~ is </<=
-    // /// returns the list of which to take and also the required condition
-    // let getConditions isLower ((bv1, eq1 as p1), (bv2, eq2 as p2)) =
-    //     if isLower then
-    //         match eq1, eq2 with
-    //         | true, false ->
-    //             // r >= bv1 && r > bv2
-    //             // so, to take: r >= bv1, it must be: bv1 > bv2
-    //             // and to take: r > bv2, it should be: bv1 <= bv2
-    //             [
-    //                 (p1, ConjCmps [ (CmpGt, bv1, bv2) ])
-    //                 (p2, ConjCmps [ (CmpLe, bv1, bv2) ])
-    //             ]
-    //         | _, _ ->
-    //             [
-    //                 (p1, ConjCmps [ (CmpGe, bv1, bv2) ])
-    //                 (p2, ConjCmps [ (CmpLt, bv1, bv2) ])
-    //             ]
-    //     else
-    //         match eq1, eq2 with
-    //         | false, true ->
-    //             // r < bv1 && r <= bv2
-    //             // so, to take: r <= bv2, it must be: bv1 > bv2
-    //             // and to take: r < bv1, it should be: bv1 <= bv2
-    //             [
-    //                 (p2, ConjCmps [ (CmpGt, bv1, bv2) ])
-    //                 (p1, ConjCmps [ (CmpLe, bv1, bv2) ])
-    //             ]
-    //         | _, _ ->
-    //             [
-    //                 (p2, ConjCmps [ (CmpGe, bv1, bv2) ])
-    //                 (p1, ConjCmps [ (CmpLt, bv1, bv2) ])
-    //             ]
+        l, u, newCmp + lCond + uCond
     
     let rec allWithCond isLower pre lst =
         // DEBUG: make it strict to let the whole division non-overlapping
         let distinguish isLower (tarVal, tarEq) (otrVal, otrEq) =
             if isLower then
-                match (tarEq, otrEq) with
+                match tarEq, otrEq with
                 | false, true ->
                     // r > tar && r >= other
                     // so, to take: r > tar, it can be: tar >= other
-                    (CmpGe, tarVal, otrVal)
+                    CmpGe, tarVal, otrVal
                 | _, _ ->
                     // otherwise, tar > other
-                    (CmpGt, tarVal, otrVal)
+                    CmpGt, tarVal, otrVal
             else
-                match (tarEq, otrEq) with
+                match tarEq, otrEq with
                 | false, true ->
                     // r < tar && r <= other
                     // to take: r < tar, it can be: tar < other
-                    (CmpLe, tarVal, otrVal)
+                    CmpLe, tarVal, otrVal
                 | _, _ ->
                     // otherwise, tar < other
-                    (CmpLt, tarVal, otrVal)
+                    CmpLt, tarVal, otrVal
         in
         match lst with
         | [] -> []
@@ -1316,6 +801,15 @@ type private PathDivisionImpl(input) =
             let cond = ConjCmps $ List.map (distinguish isLower hd) other in
             (hd, cond) :: allWithCond isLower (hd :: pre) lst
     
+    /// Arguments:
+    /// - isLower: whether the bound is lower bound or upper bound
+    /// - dfl: the default value for the bound, if no bound is given
+    /// - bounds: the list of bounds `[(bound, isEq)]`
+    /// 
+    /// Returns: `[(bound, condition)]`
+    /// where the condition means the selected bound is the tightest one
+    /// Namely, when is a lower bound, the bound is the greatest among all the lower bounds
+    /// and when is an upper bound, the bound is the least among all the upper bounds
     let boundWithConditions isLower dfl bounds =
         let bounds = (AConst dfl, true) :: bounds in
         match bounds with
@@ -1323,15 +817,17 @@ type private PathDivisionImpl(input) =
         | [ x ] -> [ (x, ConjCmps []) ]
         | lst ->
             allWithCond isLower [] lst
-            // DEBUG: this is incorrect -- should be forall but not just any two
-            // enumEveryN 2 lst
-            // |> List.map (function [ x; y ] -> (x, y) | _ -> IMPOSSIBLE ())
-            // |> List.collect (getConditions isLower)
     
     /// for this variable, returns the list of lower bound, upper bound and also the condition for this bound
     ///
-    /// The bound condition is, for a given l \in Lowers, u \in Uppers
+    /// The bound condition is, for a given `l \in Lowers`, `u \in Uppers`
+    /// ```
     /// l </<= u /\ forall l' \in Lowers. l >/>= l' /\ forall u' \in Uppers. u </<= u'
+    /// ```
+    /// I.e., the bound condition ensures the bound given must be the *tightest* one
+    /// 
+    /// Notably, this is requiered as `l` and `u` are potentially *parametric* with *program* variables
+    /// As the program variables change, the bounds may also change
     let getConditionalVarBounds (var, (lowers, uppers)) =
         let dflLower, dflUpper = Map.find var randVarRanges in
         let lowerWithConditions = boundWithConditions true dflLower lowers in
@@ -1340,8 +836,9 @@ type private PathDivisionImpl(input) =
             lowerWithConditions
             upperWithConditions
         |> List.map combineConditions
-        |> List.map (fun e -> (var, e))
+        |> List.map (fun e -> var, e)
     
+    /// return the part that does not contain random variables from the conjunction of comparisons
     let noRvPart (ConjCmps lst) =
         let noRv (_,a1,a2) = not (arithContainsRandVar a1 || arithContainsRandVar a2) in
         ConjCmps $ List.filter noRv lst
@@ -1361,29 +858,21 @@ type private PathDivisionImpl(input) =
     /// take out each comparison condition to examine whether it can be implied by the other conditions
     /// if it can, then remove it
     let filterImpliedConds cond (var, (upper, lower, conjCmps)) =
-        // let isImplied restCond hd =
-        //     // forall x. Range(var) /\ cond /\ restCond -> hd
-        //     // ==>
-        //     // ~ exists x. ~ (Range(var) /\ cond /\ restCond -> hd)
-        //     let preCond = And [
-        //         rangeRandVars
-        //         conjCmpsToProp cond
-        //         conjCmpsToProp (ConjCmps restCond)
-        //     ] in
-        //     not $ checkSAT (mkQueryCtx ()) [ Not $ Implies (preCond, conjCmpsToProp $ ConjCmps [ hd ]) ]
-        // in
-        // let rec tryRemove pre lst =
-        //     match lst with
-        //     | [] -> pre
-        //     | hd :: lst ->
-        //         // see if `hd` is implied by both, if it is, remove it, otherwise, leave it
-        //         if isImplied (pre ++ lst) hd then tryRemove pre lst
-        //         else tryRemove (hd :: pre) lst in
-        // let rec removeImplied lst =
-        //     let next = tryRemove [] lst in
-        //     if next.Length < lst.Length then removeImplied next else next in
-        (var, (upper, lower, removeImplied cond conjCmps))
+        var, (upper, lower, removeImplied cond conjCmps)
     
+    /// Analyse the conditions that are related to the random variables
+    /// Argument:
+    /// - `condRelList`: a list of pairs of conditions and its random-variable-Related conditions (subset of the full condition)
+    /// 
+    /// Returns: `[([(var, lower, upper)], condition)]`
+    /// 
+    /// More specifically, for each pair `(cond, relCond)` in `condRelList`,
+    /// it returns *a list of* pairs `([(var, lower, upper)], condition)` (i.e., NOT a one-to-one correspondence), where:
+    /// the former part `[(var, lower, upper)]` is essentially equivalent to the `relCond` part, expressed in terms of
+    /// the random variables and their ranges, and the latter part `condition` is the condition that must hold
+    /// which is a combination of:
+    /// - the original `cond` that is irrelevant to the random variables;
+    /// - and the required conditions for the random variables to take the range.
     let divMultiBoundConditions condRelList =
         let divider (cond, relCond) =
             // DEBUG: the condition should be only the part without random variables
@@ -1404,33 +893,18 @@ type private PathDivisionImpl(input) =
         in
         List.collect divider condRelList
     
-//    /// the `basicGuard` is for checking whether the information can be satisfied
-//    let genLocJoin (ConjCmps _ as cc) locType =
-//        if locType = LZero then [] else
-//        genRandVarConditions cc locType
-////        |> List.filter (fst >> fun (ConjCmps lst) ->
-////            checkSAT (mkQueryCtx ()) $
-////                List.map (Compare >> atomise) (lst ++ bLst))
-//        |> List.map snd
-//        |> List.map (fun lst -> (locType, lst))
     
     let basicJoinCondition locTypes =
         let findAndMkNot loc = Not $ findInitLocGuard loc in
         And $ fixedGuard :: List.map findAndMkNot locTypes
-    
-//    let discriminativeCondition locTypes =
-//        let basicCondition = basicJoinCondition locTypes in
-//        List.map getLocCondition locTypes
-//        |> enumEveryN 2
-//        |> List.map (And >> Not)
-//        |> curry List.Cons basicCondition
-//        |> And
     
     /// given two conjCmps from TWO DIFFERENT GUARDS of TWO DIFFERENT LOCATIONS
     /// returns 3 propositions:
     /// 1. the random var overlapping condition and their ranges
     /// 2. the first non-rand-var condition
     /// 3. the second non-rand-var condition
+    /// 
+    /// If the two conditions are not overlapping, then returns None
     let chooseOverlapRandVarRanges (ConjCmps l1) (ConjCmps l2) =
         let hasRandVar cmp =
             Set.exists (flip Set.contains randVars) $ collectVars cmp
@@ -1482,32 +956,50 @@ type private PathDivisionImpl(input) =
         |> propToValidConjCmpList false
         |> tryMergeWithConditions checkIfStillValid
     
-    /// generate the location guards
-    /// returns: [(loc, localGuard, varRanges)] where `loc` is the given location
+    /// generate the location guards analysis
+    /// 
+    /// Returns: `[(loc, localGuard, varRanges)]` where `loc` is the given location
+    /// - The `localGuard` is the guard that should be satisfied to reach the location
+    ///     it is the guard for the *program variables*;
+    /// - and `varRanges` is the list of random variables with their ranges
+    ///     it essentially encodes the guard for the *random variables*.
+    /// 
+    /// The real total guard to reach this location is the conjunction of `localGuard` and `varRanges`.
     let genLocJoinInfo basicProp loc =
-        if loc = LZero then [] else
+        // generate the raw `[(totalCondition, randVarCondition)]` for the location
         genValidRandVarConditions basicProp loc
+        // for each, analyse the random variable conditions and express them in terms of ranges
+        // Also returns the part that does not contain random variables
         |> divMultiBoundConditions
+        // re-organise the information and return
         |> List.map (fun (varRanges, localGuard) ->
-            let varRanges = List.map ((fun (v, (l, _), (u, _)) -> (v, l, u))) varRanges in
-            (loc, localGuard, varRanges))
+            // throw away the equality information -- this is not needed for the conjCmps result
+            // NOTE: potentially losing accuracy here.
+            let varRanges = List.map (fun (v, (l, _), (u, _)) -> v, l, u) varRanges in
+            loc, localGuard, varRanges)
     
+    /// If the `lst` presents a list of compatible conditions, returns the joined information.
+    /// Otherwise, returns None
     let chooseCompatibleJoinInfo bp lst =
         if lst = [] then None else
-        let repose (l, prop, varRanges) = (prop, (l, varRanges)) in
+        let repose (l, prop, varRanges) = prop, (l, varRanges) in
         let totalCondList, info = List.unzip $ List.map repose lst in
         let totalCond = List.fold (+) (ConjCmps []) totalCondList in
         let prop = totalCond + bp in
         if checkConjCmpListSAT prop then Some $ NLJoin (prop, info) else None
     
     let allMentionedRandVars =
-        List.map (snd >> collectVars) path
+        Map.toList updates
+        |> List.map (snd >> collectVars)
         // all vars
         |> Set.unionMany
         // only the random vars
         |> Set.intersect randVars
         |> Set.toList
     
+    /// fill the information about the *random* variables that do not take part in separating the cases in Join
+    /// Simply attach the primitive range of the random variables.
+    /// Terminology `var` here refers exclusively to the random variables, NOT the program variables
     let attachIrrelevantVars nlInfo =
         let addIfNotIn relVars ret rv =
             if Set.contains rv relVars then ret
@@ -1529,10 +1021,11 @@ type private PathDivisionImpl(input) =
         let addIrrVars (loc, vars) = (loc, addIrrVars vars) in
         match nlInfo with
         | NLJoin (totalGuard, lst) -> NLJoin (totalGuard, List.map addIrrVars lst)
+        // this should not be called as we are handling the join case now
         | NLSingle _ -> IMPOSSIBLE ()
     
     /// check whether Join should be generated, if so, pass the job to `PureGenJoin`
-    member private x.GenJoin locTypes =
+    member private _x.GenJoin locTypes =
         // should find the NON-LOSS guards and make Not
         let basicProps =
             match locTypes with
@@ -1556,22 +1049,13 @@ type private PathDivisionImpl(input) =
     
     member x.BasicDivisionAnalysis () =
         [
-            match mayEndIfScoreGuard with
-            | None ->
-                // analyse 1 and -1
-                genSingle LOne
-                genSingle LNegOne
-                x.GenJoin [ LOne; LNegOne ]
-            | Some _ ->
-                // analyse 1, 0 and -10
-                genSingle LOne
-                genSingle LZero
-                genSingle LNegTen
-                x.GenJoin [ LOne; LZero; LNegTen ]
+            genSingle InLoop
+            genSingle OutLoop
+            x.GenJoin [ InLoop; OutLoop ]
         ]
         |> List.concat
 
-let pathDivisionAnalysis arg =
+let pathDivisionAnalysis (arg: PathDivisionArgs) =
     let analyser = PathDivisionImpl arg in
     analyser.BasicDivisionAnalysis ()
 
