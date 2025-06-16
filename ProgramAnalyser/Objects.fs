@@ -247,5 +247,17 @@ type BoolExpr =
 let substituteBoolVars (bExpr : BoolExpr) map =
     bExpr.SubsVars map
     
-    
+type RealInf =
+    | RINum of Numeric
+    | RINegInf
+    | RIPosInf
+    override x.ToString () =
+        match x with
+        | RINum n -> n.ToString ()
+        | RINegInf -> "-inf"
+        | RIPosInf -> "inf"
+    member x.ToString para =
+        match x with
+        | RINum n -> n.ToString para
+        | _ -> x.ToString ()
 

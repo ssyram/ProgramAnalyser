@@ -11,6 +11,21 @@ type Statement =
     | STInLoopScore of ArithExpr
     | STIfBool of (BoolExpr * Statement list) list
     | STIfProb of p:ArithExpr * t:Statement list * f:Statement list
+    with
+    interface IVariableCollectable with
+        member this.CollectVars () =
+            match this with
+            | STAssn (var, expr) -> Set.add var $ collectVars expr
+            | STSkip | STBreak -> Set.empty
+            | STInLoopScore expr -> collectVars expr
+            | STIfBool lst ->
+                let collect (bExpr, stLst) =
+                    Set.unionMany $ List.map collectVars stLst
+                    |> Set.union (collectVars bExpr) in
+                Set.unionMany $ List.map collect lst
+            | STIfProb (prob, lT, lF) ->
+                Set.unionMany $ List.map collectVars (lT @ lF)
+                |> Set.union (collectVars prob)
     
 type DistType =
     | DContinuousUniform
@@ -66,14 +81,28 @@ type EndLoopScore =
 
 type ProgVarType = PVTInt | PVTReal
 
-type RangeVal =
-    | RValNumeric of Numeric
-    | RValInf
-    | RValNegInf
+type IDeclVarCollectable =
+    abstract member CollectDeclVars : unit -> Set<Variable>
+
+/// collect the declared variables
+let collectDeclVars (x : #IDeclVarCollectable) =
+    x.CollectDeclVars ()
 
 type Decl =
-    | DeclProgVar of pvType:ProgVarType * name:string * rangeLow:RangeVal * rangeHigh:RangeVal * init:ArithExpr
-    | DeclRandVar of name:string * dist:Distribution
+    | DeclProgVar of pvType:ProgVarType * name:string * rangeLow:RealInf * rangeHigh:RealInf * init:ArithExpr
+    | DeclRandVar of name:string * dist:Distribution * rangeLow:RealInf * rangeHigh:RealInf
+with
+    interface IVariableCollectable with
+        member this.CollectVars () =
+            match this with
+            | DeclProgVar (_, var, _, _, initExpr) ->
+                Set.add (Variable var) $ collectVars initExpr
+            | DeclRandVar _ -> Set.empty
+    interface IDeclVarCollectable with
+        member this.CollectDeclVars () =
+            match this with
+            | DeclProgVar (_, var, _, _, _) -> Set.singleton (Variable var)
+            | DeclRandVar (var, _,_,_) -> Set.singleton (Variable var)
 
 type Program = {
     decls: Decl list
@@ -81,24 +110,70 @@ type Program = {
     loopGuard:BoolExpr
     loopBody:Statement list
     outLoopStatements: Statement list
-}
+} with
+    interface IVariableCollectable with
+        member this.CollectVars () =
+            Set.unionMany [
+                collectVars this.invariant;
+                collectVars this.loopGuard;
+                Set.unionMany $ List.map collectVars this.loopBody;
+                Set.unionMany $ List.map collectVars this.outLoopStatements;
+                Set.unionMany $ List.map collectVars this.decls
+            ]
+    interface IDeclVarCollectable with
+        member this.CollectDeclVars () =
+            Set.unionMany $ List.map collectDeclVars this.decls
 
-let validateProgram program =
-    // currently, the only check is that the outLoopStatments should not contain `break`
-    let rec checkNoBreak (st : Statement) =
-        match st with
-        | STBreak -> false
-        | STSkip -> true
-        | STAssn (_, _) -> true
-        | STInLoopScore _ -> true
-        | STIfBool lst ->
-            List.forall (fun (_, stLst) -> List.forall checkNoBreak stLst) lst
-        | STIfProb (_, lT, lF) ->
-            List.forall checkNoBreak lT && List.forall checkNoBreak lF
-    in
-    if not (List.forall checkNoBreak program.outLoopStatements) then
-        failwith "The out loop statements should not contain `break`."
-    else ()
+// ---------------------------------------- Program Validation ----------------------------------------
+
+module private ProgramValidation = begin
+    /// the outLoopStatments should not contain `break`
+    let checkOutLoopNoBreak (program : Program) =
+        let rec checkNoBreak (st : Statement) =
+            match st with
+            | STBreak -> false
+            | STSkip -> true
+            | STAssn (_, _) -> true
+            | STInLoopScore _ -> true
+            | STIfBool lst ->
+                List.forall (fun (_, stLst) -> List.forall checkNoBreak stLst) lst
+            | STIfProb (_, lT, lF) ->
+                List.forall checkNoBreak lT && List.forall checkNoBreak lF
+        in
+        if not (List.forall checkNoBreak program.outLoopStatements) then
+            failwith "The out loop statements should not contain `break`."
+        else program
+    /// check if all the variables in the program are declared
+    let checkVarsDeclared (program : Program) =
+        let declaredVars = collectDeclVars program in
+        let usedVars = collectVars program in
+        let outstandingVars = Set.difference usedVars declaredVars in
+        if not (Set.isEmpty outstandingVars) then
+            failwith $"There are variables used in the program that are not declared: {Set.toList outstandingVars}."
+        else program
+    let checkVarNamesNoConflict (program : Program) =
+        let mutable exploredVars = Set.empty in
+        let errIfDuplicated (decl : Decl) =
+            let vars = collectDeclVars decl in
+            let conflictVars = Set.intersect exploredVars vars in
+            if not (Set.isEmpty conflictVars) then
+                failwith $"There variable {Set.toList conflictVars} is declared multiple times."
+            else
+                exploredVars <- Set.union exploredVars vars in
+        List.iter errIfDuplicated program.decls;
+        program
+end
+
+let private validateProgram program =
+    program
+    |> ProgramValidation.checkOutLoopNoBreak
+    |> ProgramValidation.checkVarsDeclared
+    |> ProgramValidation.checkVarNamesNoConflict
+    |> ignore
+    
+
+
+// ---------------------------------------- Program Constructors ----------------------------------------
 
 let mkProgram 
         decls 
@@ -124,17 +199,22 @@ let mkPvDecl typStr name rangeLow rangeHigh initExpr =
         | _ -> failwith $"Unknown program variable type: {typStr}."
     in
     DeclProgVar (pvType, name, rangeLow, rangeHigh, initExpr)
-let mkRvDecl randVarStr name dist =
+let mkRvDecl randVarStr name maybeRange dist =
+    let lower, upper =
+        match maybeRange with
+        | None -> RINegInf, RIPosInf
+        | Some (low, high) -> low, high
+    in
     if randVarStr <> "random" then
         failwith $"Unknown random variable declaration: {randVarStr}."
     else
-        DeclRandVar (name, dist)
+        DeclRandVar (name, dist, lower, upper)
 let mkRangeInf str =
-    if str = "inf" then RValInf
+    if str = "inf" then RIPosInf
     else failwith $"Invalid range value: {str}, expected 'inf'."
 let mkRangeNegInf str =
-    if str = "inf" then RValNegInf
-    else failwith $"Invalid range value: {str}, expected '-inf'."
+    if str = "inf" then RINegInf
+    else failwith $"Invalid range value: -{str}, expected '-inf'."
 
 let shapeOptionalIfScoreStatement bExpr sT sF =
     match sT, sF with
@@ -143,9 +223,6 @@ let shapeOptionalIfScoreStatement bExpr sT sF =
 
 type RandomVarList = RandomVarList of (Variable * Distribution) list
     
-let collectEndScoreLoopVars endScoreLoop =
-    match endScoreLoop with
-    | ScoreArith aExpr | ScoreDist (_, aExpr) -> collectVars aExpr
 
 /// collect the variables that are read
 let rec collectStatementUsedVars (st : Statement) =
@@ -173,7 +250,24 @@ let rec collectStatementUsedVars (st : Statement) =
 let collectDeclUsedVars (decl : Decl) =
     match decl with
     | DeclProgVar (_, _, _, _, initExpr) -> collectVars initExpr
-    | DeclRandVar (_, dist) -> Set.empty
+    | DeclRandVar _ -> Set.empty
+
+let programVarsOfProgram program =
+    let mapper = function
+    | DeclProgVar (pvType, name, lower, upper, _) ->
+        Some (Variable name, (pvType, lower, upper))
+    | DeclRandVar _ -> None
+    in
+    List.choose mapper program.decls
+    |> Map.ofList
+let randVarsOfProgram program =
+    let mapper = function
+    | DeclRandVar (name, dist, lower, upper) ->
+        Some (Variable name, (dist, lower, upper))
+    | DeclProgVar _ -> None
+    in
+    List.choose mapper program.decls
+    |> Map.ofList
 
 /// collect all the variables that are read in the program
 let collectUsedVarsFromProgram (program : Program) =

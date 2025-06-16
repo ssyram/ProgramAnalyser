@@ -55,23 +55,20 @@ type LossConfirm = LossConfirm
 
 /// MAY HAVE ACCURACY LOSS </br>
 /// SHOULD CONFIRM THE LOSS HERE
+/// 
+/// from `e1 ~ e2` to `E >= 0`, returns `E`.
+/// This equation is exact if `e1` and `e2` are both integers.
+/// Otherwise, when either `e1` or `e2` is a real number, the accuracy is lost when `e1 > e2` or `e1 < e2`.
+/// When `e1 == e2`, it returns: `e1 - e2` *and* `e2 - e1` to prevent accuracy loss.
 let cmpToArithExprList LossConfirm (op, a1, a2) =
     let isIntVar (Variable v) = Set.contains v Flags.INT_VARS in
-    let isInt = function | (AConst c) -> c.IsInt | _ -> false in
-    match (op, a1, a2) with
-    | (CmpGt, AVar v, _) when isIntVar v && isInt a2 ->
-        // v > a2 ==> v >= a2+1 ==> v - (a2+1) >= 0
-        [ AOperation (OpMinus, [a1; AOperation (OpAdd, [a2; AConst NUMERIC_ONE])]) ]
-    | (CmpGt, _, AVar v) when isIntVar v && isInt a1 ->
-        // a1 > v ==> a1 - 1 >= v ==> a1 - 1 - v >= 0
-        [ AOperation (OpMinus, [a1; AOperation (OpAdd, [a2; AConst NUMERIC_ONE])]) ]
-    | (CmpLt, AVar v, _) when isIntVar v && isInt a2 ->
-        // v < a2 ==> v <= a2 - 1 ==> a2 - 1 - v >= 0
-        [ AOperation (OpMinus, [a2; AOperation (OpAdd, [a1; AConst NUMERIC_ONE])]) ]
-    | (CmpLt, _, AVar v) when isIntVar v && isInt a1 ->
-        // a1 < v ==> a1 + 1 <= v ==> v - a1 - 1 >= 0
-        [ AOperation (OpMinus, [a2; AOperation (OpAdd, [a1; AConst NUMERIC_ONE])]) ]
-    | _ ->
+    let rec isIntExpr a =
+        match a with
+        | AVar v -> isIntVar v
+        | AConst c -> c.IsInt
+        | AOperation (_, lst) -> List.forall isIntExpr lst
+    in
+    let exprs =
         match op with
         | CmpEq -> [ AOperation (OpMinus, [a1; a2])
                      AOperation (OpMinus, [a2; a1]) ]
@@ -80,6 +77,13 @@ let cmpToArithExprList LossConfirm (op, a1, a2) =
         | CmpGt -> [ AOperation (OpMinus, [a1; a2]) ]
         | CmpLe -> [ AOperation (OpMinus, [a2; a1]) ]
         | CmpLt -> [ AOperation (OpMinus, [a2; a1]) ]
+    in
+    match op with
+    // for int expr `e`, `e > 0` == `e >= 1` == `e - 1 >= 0`
+    | CmpGt | CmpLt when List.forall isIntExpr exprs ->
+        List.map (fun e -> AOperation (OpMinus, e :: [AConst NUMERIC_ONE])) exprs
+    // otherwise, simply returns `expr` as it is a `Real` expression
+    | _ -> exprs
 
 /// pure conversion, no optimisation
 let dnfPropToGeConj confirm dnf =
@@ -98,9 +102,6 @@ let conjCmpsToGeConj confirm (ConjCmps lst) =
     List.map (cmpToArithExprList confirm) lst
     |> List.concat
     |> GeConj
-    
-let disjToGeConjs confirm (DisjConjCmps lst) =
-    List.map (conjCmpsToGeConj confirm) lst
 
 let genBoundsConjCompsFromItemBoundMap itemBoundMap =
     let mapper (lhs, Range (lower, upper)) =
@@ -501,7 +502,7 @@ type PathDivisionArgs = {
     updates : Map<Variable, ArithExpr>;
     /// The guard that must be satisfied before the execution of the updates, but are NOT required to hold after the updates.
     /// This will NOT be used for the `wp` computation.
-    /// It essentially contains:
+    /// It essentially contains the conjunction of:
     /// 1) the loop invariant, and,
     /// 2) the path condition (also named segment guard) of the path behind the updates.
     fixedGuard : Proposition<Compare>;
@@ -1055,6 +1056,7 @@ type private PathDivisionImpl(input) =
         ]
         |> List.concat
 
+/// The main entry point for path division analysis
 let pathDivisionAnalysis (arg: PathDivisionArgs) =
     let analyser = PathDivisionImpl arg in
     analyser.BasicDivisionAnalysis ()

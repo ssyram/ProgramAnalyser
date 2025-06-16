@@ -21,7 +21,7 @@ open ProgramAnalyser.Objects
 %token ST_IF ST_THEN ST_ELSE ST_ELSEIF ST_FI ST_PROB  // built-in statement constructors
 %token ST_SAMPLE ST_BREAK
 %token TRUE FALSE AND OR GE LE EQ NEQ LANGLE RANGLE  // boolean contructors and operators
-%token KW_CONFIG
+%token KW_CONFIG KW_INF
 %token ERROR
 
 %type < ProgramAnalyser.ParserSupport.Program       > program
@@ -43,11 +43,12 @@ decl_list :
   | decl SEMI_COLON decl_list { $1 :: $3 }
 decl :
     ID ID COLON LBKT range_val COMMA range_val RBKT ASSIGN arith_expr { mkPvDecl $1 $2 $5 $7 $10 }
-  | ID ID TILDE distribution { mkRvDecl $1 $2 $4 }
+  | ID ID TILDE distribution { mkRvDecl $1 $2 None $4 }  
+  | ID ID COLON LBKT range_val COMMA range_val RBKT TILDE distribution { mkRvDecl $1 $2 (Some ($5, $7)) $10 }
 range_val :
-    number { RValNumeric $1 }
-  | MINUS ID { mkRangeNegInf $2 }
-  | ID { mkRangeInf $1 }
+    number { RINum $1 }
+  | MINUS KW_INF { RINegInf }
+  | KW_INF { RIPosInf }
 
 distribution :
     ID LPAREN dist_arg_list RPAREN { mkDistribution $1 $3 }
