@@ -6,5 +6,5 @@ open Utils
 
 [<EntryPoint>]
 let main args =
-    runArgAnalysis $ Array.toList args;
+    Test.testSimpleExample ();
     0

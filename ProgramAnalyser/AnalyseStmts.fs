@@ -18,6 +18,8 @@ open ParserSupport
 open Objects
 open Utils
 open Global
+open Logic
+open Polynomial
 
 /// The edge of the control flow graph, which is a tuple of:
 /// - the updates of program variables, the orders does not matter,
@@ -29,10 +31,18 @@ open Global
 /// - the list of scores that are accumulated on the edge
 type CfgEdge = { update: Map<Variable, ArithExpr>
                  prob: ArithExpr
-                 guard: BoolExpr
+                 guard: Proposition<Compare>
                  scores: ArithExpr list
                  /// This is important, as if `isBreak` then it must get out of the loop
                  isBreak: bool }
+with
+    override x.ToString () =
+        let updateStr = Map.toList x.update |> List.map (fun (v, e) -> $"{v}:={e}") |> String.concat ", "
+        let probStr = $"prob: {x.prob}"
+        let guardStr = $"guard: {x.guard}"
+        let scoresStr = String.concat "*" (List.map (fun e -> $"({e})") x.scores)
+        let breakStr = if x.isBreak then "BREAK" else "no-break"
+        $"CfgEdge({updateStr}, {probStr}, {guardStr}, {scoresStr}, {breakStr})"
 
 /// the statements that are to appear on the edge
 type private EdgeStatement =
@@ -129,12 +139,14 @@ let private edgeToCfgEdge (Edge ess) =
     // helper constructs
     let (|->) v e = Map.add v e Map.empty in
     let updateMap v e (map: Map<Variable,ArithExpr>) =
-        Map.map (fun _ e' -> substVars e' (v |-> e)) map in
+        let e' = substVars e map in
+        Map.add v e' map
+    in
     let updateExpr e map = substVars e map in
     let initCfgEdge: CfgEdge =
         { update = Map.empty
           prob = AConst NUMERIC_ONE
-          guard = BTrue
+          guard = True
           scores = []
           isBreak = false } in
 
@@ -143,15 +155,23 @@ let private edgeToCfgEdge (Edge ess) =
         match es with
         | ESAssign (var, expr) -> { cfgEdge with update = updateMap var expr map }
         | ESScore expr -> { cfgEdge with scores = updateExpr expr map :: cfgEdge.scores }
-        // stop the computation here for `break`, also mark it
-        | ESBreak -> raise $ BreakMark { cfgEdge with isBreak = true }
-        | ESCond guard -> { cfgEdge with guard = BAnd (cfgEdge.guard, updateExpr guard map) }
+        // it should always be the last item in the edge after the cut
+        // so no need to stop the computation here as there will be no more statements behind
+        | ESBreak -> { cfgEdge with isBreak = true }
+        | ESCond guard -> { cfgEdge with guard = And [ cfgEdge.guard; boolExprToProposition $ updateExpr guard map ] }
         | ESProb prob ->
             { cfgEdge with prob = AOperation (OpMul, [cfgEdge.prob; updateExpr prob map]) }
     in
-    try List.fold folder initCfgEdge ess
-    with | BreakMark cfgEdge -> cfgEdge
+    List.fold folder initCfgEdge ess
 
+let private cutOnBreak (edge : Edge) =
+    let rec cut acc edge =
+        match edge with
+        | Edge [] -> Edge (List.rev acc)
+        | Edge (ESBreak :: _) -> Edge (List.rev (ESBreak :: acc))
+        | Edge (es :: rest) -> cut (es :: acc) (Edge rest)
+    in
+    cut [] edge
 
 /// The interface of this file, which converts a list of statements to a list of CFG edges
 /// Namely, from a non-loop context, it enumerates all the possible paths from this context
@@ -160,5 +180,7 @@ let stmtsToCfgEdges (statements: Statement list) : CfgEdge list =
     statementsToTree statements
     // convert the tree structure to edges
     |> nodeToEdges
+    |> List.map cutOnBreak
+    |> List.distinct
     // convert the edges to CfgEdge
     |> List.map edgeToCfgEdge

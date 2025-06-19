@@ -35,8 +35,14 @@ program :
     ST_WHILE bool_expr ST_DO
       non_loop_statements
     ST_OD
+    { mkProgram $1 $3 $6 $8 [] }
+  | decl_list
+    LBKT bool_expr RBKT
+    ST_WHILE bool_expr ST_DO
+      non_loop_statements
+    ST_OD SEMI_COLON
     non_loop_statements
-    { mkProgram $1 $3 $6 $8 $10 }
+    { mkProgram $1 $3 $6 $8 $11 }
 
 decl_list :
     decl SEMI_COLON { [$1] }

@@ -22,7 +22,12 @@ open ProgramAnalyser.Utils
 //         10 - X <= r <= 1: OutLoop
 //      Single: X > 9.5: OutLoop
 // ]
-
+// 
+// A simpler version -- simply the paths themselves, no division:
+// [
+//      InLoop: [ X < 10 ] 1: (X) -> (X + r), 1 -- this considers the in-loop case
+//      OutLoop: [ X >= 10 ] 1: (X) -> (X), 1  -- this considers the out-loop case
+// ]
 
 // --------------------------------------------- Greater-or-Equal Conjunction ---------------------------------------------
 // This part is the infrastructure of handling the basic greater-or-equal conjunctions
@@ -320,10 +325,10 @@ let decomposePropToValidExclusiveConjCmps (proposition : Proposition<Compare>) =
 type Location =
     | InLoop
     | OutLoop
-    override x.ToString () =
-        match x with
-        | InLoop -> "InLoop"
-        | OutLoop -> "OutLoop"
+    // override x.ToString () =
+    //     match x with
+    //     | InLoop -> "InLoop"
+    //     | OutLoop -> "OutLoop"
 
 /// should collect the conjunction of comparison list --
 /// ONE STEP before the GeConj, in order to preserve the original form as well as also trivial to
@@ -1061,14 +1066,18 @@ let pathDivisionAnalysis (arg: PathDivisionArgs) =
     let analyser = PathDivisionImpl arg in
     analyser.BasicDivisionAnalysis ()
 
-let rec boolExprToProposition (bExpr : BoolExpr) =
-    let rec collectAndLevel bExpr =
-        match bExpr with
-        | BAnd (b1, b2) -> collectAndLevel b1 ++ collectAndLevel b2
-        | _ -> [ bExpr ]
-    in
-    match bExpr with
-    | BTrue -> True
-    | BFalse -> False
-    | BAnd _ -> And $ List.map boolExprToProposition (collectAndLevel bExpr)
-    | BCompare (op, a1, a2) -> atomise $ Compare (op, a1, a2)
+
+
+
+
+// -------------------------------------------- Simple Version --------------------------------------------
+
+type SimplePathDivisionArgs = {
+    /// The updates that will be applied to the variables
+    updates : Map<Variable, ArithExpr>;
+    /// The guard that must be satisfied before the execution of the updates, but are NOT required to hold after the updates.
+    fixedGuard : Proposition<Compare>;
+    
+}
+
+

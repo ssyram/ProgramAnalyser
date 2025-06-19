@@ -136,6 +136,18 @@ type Compare = Compare of Comparator * ArithExpr * ArithExpr
             let (Compare (op, a1, a2)) = this in
             Compare (op, substVars a1 map, substVars a2 map)
 
+let rec boolExprToProposition (bExpr : BoolExpr) =
+    let rec collectAndLevel bExpr =
+        match bExpr with
+        | BAnd (b1, b2) -> collectAndLevel b1 ++ collectAndLevel b2
+        | _ -> [ bExpr ]
+    in
+    match bExpr with
+    | BTrue -> True
+    | BFalse -> False
+    | BAnd _ -> And $ List.map boolExprToProposition (collectAndLevel bExpr)
+    | BCompare (op, a1, a2) -> atomise $ Compare (op, a1, a2)
+
 let negateCompare (Compare (op, a1, a2)) = Compare (op.Negate, a1, a2)
 
 let nodeToCompare (node : Node) =

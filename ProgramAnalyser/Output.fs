@@ -88,6 +88,7 @@ let printJoinedDestEdge (guard, lst) =
 type CfgItem =
     { updates : Map<Variable, ArithExpr>
       prob : ArithExpr
+      scores : ArithExpr list
       // the guards below are multiple, because each guard is a conjunctive clause
       // we use multiple guards to represent the disjunction condition
 
@@ -106,6 +107,7 @@ type CfgItem =
         [
             "edge:" + printUpdates x.updates
             $"prob={x.prob}"
+            "scores:" + String.concat "*" (List.map (fun x -> $"({x})") x.scores)
             String.concat "\n" $ List.map printSingleDestEdge x.singleDestEdges
             String.concat "\n" $ List.map printJoinedDestEdge x.joinedDestEdges
             "end-edge"
@@ -127,44 +129,230 @@ type private Analyser(name : string, program : Program) = class
     let loopInv = boolExprToProposition program.invariant
     let loopGuard = boolExprToProposition program.loopGuard
 
+    let breakEdgeToCfgItem (edge : CfgEdge) =
+        assert edge.isBreak;
+        let singleDestEdges =
+            edge.guard
+            |> propToValidConjCmpList true
+            // as it has break, it must get out of the loop
+            |> List.map (fun guard -> OutLoop, guard)
+        in
+        {
+            updates = edge.update
+            prob = edge.prob
+            scores = edge.scores
+            singleDestEdges = singleDestEdges
+            joinedDestEdges = [ ]
+        }
+
+    let genAnalysisArgs (edge : CfgEdge) =
+        let restTwo rv (_, x, y) =
+            match x, y with
+            | RINum lower, RINum upper -> (lower, upper)
+            | _ ->
+                failwith $ String.concat " " [
+                    $"The range of random variable {rv} is not specified."
+                    "Please consider specifying it either"
+                    "in the program by `random rv : [lower, upper] ~ dist`"
+                    "or in the CLI by `--RANGE=rv@lower&upper."
+                ]
+        in
+        {
+            updates = edge.update
+            fixedGuard = And [ loopInv; edge.guard ]
+            loopGuard = loopGuard
+            randVarRanges = Map.map restTwo randomVars
+        }
+
+    let divideEdges (args : NextLocInfo list) =
+        undefined()
+
+    let nonBreakEdgeToCfgItem (edge : CfgEdge) =
+        assert not edge.isBreak;
+        let singleEdges, joinedEdges =
+            genAnalysisArgs edge
+            |> pathDivisionAnalysis
+            |> divideEdges
+        in
+        {
+            updates = edge.update
+            prob = edge.prob
+            scores = edge.scores
+            singleDestEdges = singleEdges
+            joinedDestEdges = joinedEdges
+        }
+
+    let preCfgEdgeToCfgItem (edge : CfgEdge) =
+        if edge.isBreak then breakEdgeToCfgItem edge
+        else nonBreakEdgeToCfgItem edge
+
+    /// Converts a `CfgEdge` to a `CfgItem`.
+    /// It performs the division analysis on the edge first, which forms the "pre-CfgEdge".
+    /// For the out-going edges, we should add the post-loop information, leading to the end of the loop.
     let cfgEdgeToCfgItem (edge : CfgEdge) =
-        if edge.isBreak then
-            let singleDestEdges =
-                boolExprToProposition edge.guard
-                |> propToValidConjCmpList true
-                // as it has break, it must get out of the loop
-                |> List.map (fun guard -> OutLoop, guard)
-            in
+        let preCfgItem = preCfgEdgeToCfgItem edge in
+        // should add the post-loop information
+        undefined()
+
+    member this.Analyse () : Output =
+        let cfgItems =
+            program.loopBody
+            |> stmtsToCfgEdges
+            |> List.map cfgEdgeToCfgItem
+        in
+        let randomVars =
+            Map.toList randomVars
+            |> List.map (fun (v,(x,y,z)) -> v,x,y,z)
+        in
+        let programVars =
+            Map.toList programVars
+            |> List.map (fun (v,(x,y,z)) -> v,x,y,z)
+        {
+            programName = name
+            randomVars = randomVars
+            programVars = programVars
+            cfgItems = cfgItems
+        }
+end
+
+/// Loc: [ guard ] prob: (vars) -> (exprs), scores
+type SimpleCfgItem =
+    { updates : Map<Variable, ArithExpr>
+      prob : ArithExpr
+      scores : ArithExpr list
+      toLoc : Location
+      guard : GeConj }
+with
+    override x.ToString (): string =
+        $"""{x.toLoc}: [{x.guard}] {x.prob}: {printUpdates x.updates}, {String.concat "*" (List.map (fun x -> $"({x})") x.scores)}"""
+
+let normaliseGeConj (GeConj lst) = GeConj $ List.map normaliseArithExpr lst
+
+/// optimise the expressions inside
+let optimiseSimpleItem item =
+    let updates =
+        item.updates
+        |> Map.map (fun _ expr -> normaliseArithExpr expr) in
+    let prob = normaliseArithExpr item.prob in
+    let scores = List.map normaliseArithExpr item.scores in
+    let guard = normaliseGeConj item.guard in
+    { updates = updates
+      prob = prob
+      scores = scores
+      toLoc = item.toLoc
+      guard = guard }
+
+
+type SimpleOutput =
+    { programName : string
+      randomVars : (Variable * Distribution * RealInf * RealInf) list
+      programVars : (Variable * RealInf * RealInf) list
+      cfgItems : SimpleCfgItem list }
+with
+    override x.ToString () : string =
+        let randomVarsStr =
+            String.concat "\n" $ List.map (fun (v, dist, lower, upper) -> $"{v} {dist} [{lower}, {upper}]") x.randomVars
+        in
+        let programVarsStr =
+            String.concat "\n" $ List.map (fun (v, lower, upper) -> $"{v} [{lower}, {upper}]") x.programVars
+        in
+        let cfgItemsStr =
+            String.concat "\n" $ List.map toString x.cfgItems
+        in
+        [
+            $"{x.programName}"
+            "Random Variables:"
+            randomVarsStr
+            "Program Variables:"
+            programVarsStr
+            "CFG Items:"
+            cfgItemsStr
+        ]
+        |> fromListGenOutput
+
+/// to combine the updates of two edges
+/// (x,y) -> (x+1,x+2)
+/// with
+/// (y,z) -> (y+5,z+6)
+/// produces:
+/// (x,y,z) -> (x+1,x+2+5,z+6) ==> (x,y,z) -> (x+1,x+7,z+6)
+let private combineUpdates front back =
+    let back = Map.map (fun var expr -> substVars expr front) back in
+    // find the missing items in front to add to back
+    let inFrontNotInBack =
+        Set.difference (Set.ofSeq $ Map.keys front) (Set.ofSeq $ Map.keys back)
+    in
+    Set.fold (fun acc var ->
+        match Map.tryFind var front with
+        | Some expr -> Map.add var expr acc
+        | None -> acc) back inFrontNotInBack
+
+
+/// will let the `isBreak` edge be the latter one
+let private appendEdge (front : CfgEdge) (back : CfgEdge) =
+    {
+        update = combineUpdates front.update back.update
+        prob = AOperation (OpMul, [front.prob; back.prob])
+        scores = front.scores @ back.scores
+        guard = And [ front.guard; back.guard ]
+        isBreak = back.isBreak
+    }
+
+type SimpleAnalyser (name : string, program : Program) = class
+    let randomVars = randVarsOfProgram program
+    let programVars = programVarsOfProgram program
+    let loopGuard = boolExprToProposition program.loopGuard
+    let invariant = boolExprToProposition program.invariant
+
+    /// To translate an edge to multiple potential items as the guard might not be a single clause in DNF.
+    /// Simply decompose the guard and generate the items.
+    let directToItems locType (edge : CfgEdge) =
+        edge.guard
+        // validity checked here
+        |> propToValidConjCmpList true
+        |> List.map (fun guard ->
             {
                 updates = edge.update
                 prob = edge.prob
-                singleDestEdges = singleDestEdges
-                joinedDestEdges = [ ]
-            }
+                scores = edge.scores
+                toLoc = locType
+                guard = conjCmpsToGeConj LossConfirm guard
+            })
+
+    /// remember to input the out-loop edges WITHOUT considering the (negation of the) loop guard
+    /// Otherwise, it must contradict the loop guard for break edges.
+    let simpleItemsFromEdge noLoopGuardOutEdges inEdge =
+        if inEdge.isBreak then
+            debugPrint $"Break edge: {inEdge}";
+            List.collect (directToItems OutLoop << appendEdge inEdge) noLoopGuardOutEdges
         else
-            let args =
-                let restTwo rv (_,x,y) =
-                    match x, y with
-                    | RINum lower, RINum upper -> (lower, upper)
-                    | _ ->
-                        failwith $ String.concat " " [
-                            $"The range of random variable {rv} is not specified."
-                            "Please consider specifying it either"
-                            "in the program by `random rv : [lower, upper] ~ dist`"
-                            "or in the CLI by `--RANGE=rv@lower&upper."
-                        ]
-                in
-                { updates = edge.update
-                  fixedGuard = And [ loopInv; boolExprToProposition edge.guard ]
-                  loopGuard = loopGuard
-                  randVarRanges = Map.map restTwo randomVars }
-            in
-            undefined ()
+            debugPrint $"Non-break edge: {inEdge}";
+            directToItems InLoop inEdge
 
-    member this.Analyse () =
-        undefined()
+    let addInLoopGuard (edge : CfgEdge) =
+        { edge with
+            guard = And [ edge.guard; loopGuard; invariant ] }
+
+    let addOutLoopGuard (edge : CfgEdge) =
+        { edge with
+            guard = And [ edge.guard; Not loopGuard; invariant ] }
+
+    let cfgItems =
+        let inLoopEdges = List.map addInLoopGuard $ stmtsToCfgEdges program.loopBody in
+        // considering the break edges, we need NOT to add the (negation of) loop guard here for out-loop edges
+        let noLoopGuardOutEdges = stmtsToCfgEdges program.outLoopStatements in
+        let outLoopEdges = List.map addOutLoopGuard noLoopGuardOutEdges in
+        List.collect (simpleItemsFromEdge noLoopGuardOutEdges) inLoopEdges @
+        List.collect (directToItems OutLoop) outLoopEdges
+
+    member _.Analyse () : SimpleOutput =
+        {
+            programName = name
+            randomVars = Map.toList randomVars |> List.map (fun (v, (dist, lower, upper)) -> v, dist, lower, upper)
+            programVars = Map.toList programVars |> List.map (fun (v, (_, lower, upper)) -> v, lower, upper)
+            cfgItems = cfgItems |> List.map optimiseSimpleItem
+        }
 end
-
 
 // let genOutputFromProgram (programName : string) (program : Program) =
 
