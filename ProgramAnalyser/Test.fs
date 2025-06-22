@@ -240,153 +240,159 @@ let private testExecPrint exec input =
     printfn $"{res}"
     printfn $"Time Elapsed: {time}."
 
-let private testExecPrintToOutputLog exec input =
-    // firstly, generate the output path, if not existed, create it
-    let outputPath =
-        let directory = Path.GetDirectoryName input.programPath in
-        let outputDirectory = Path.Combine(directory, "output") in
-        Directory.CreateDirectory outputDirectory |> ignore;
-        let outputFileName =
-            Path.ChangeExtension(Path.GetFileName input.programPath, ".txt") in
-        Path.Combine(outputDirectory, outputFileName) in
+// let private testExecPrintToOutputLog exec input =
+//     // firstly, generate the output path, if not existed, create it
+//     let outputPath =
+//         let directory = Path.GetDirectoryName input.programPath in
+//         let outputDirectory = Path.Combine(directory, "output") in
+//         Directory.CreateDirectory outputDirectory |> ignore;
+//         let outputFileName =
+//             Path.ChangeExtension(Path.GetFileName input.programPath, ".txt") in
+//         Path.Combine(outputDirectory, outputFileName) in
     
-    // execute the information
-    let time, res = exec input in
+//     // execute the information
+//     let time, res = exec input in
     
-    // write and return
-    File.WriteAllText(outputPath, res + "\n" + $"Generation Time: {time}\n")
+//     // write and return
+//     File.WriteAllText(outputPath, res + "\n" + $"Generation Time: {time}\n")
     
-let private testExec input =
-    // perform execution
-    let timing = System.Diagnostics.Stopwatch () in
-    timing.Start ();
-    let ret = fst $ runParseAnalysis input None in
-    let time = timing.Elapsed in
-    time, ret
+// let private testExec input =
+//     // perform execution
+//     let timing = System.Diagnostics.Stopwatch () in
+//     timing.Start ();
+//     let ret = fst $ runParseAnalysis input None in
+//     let time = timing.Elapsed in
+//     time, ret
 
-/// the central function to modify if the printing mode is to change
-let private testRunParseAnalysis input =
-    testExecPrintToOutputLog testExec input
+// /// the central function to modify if the printing mode is to change
+// let private testRunParseAnalysis input =
+//     testExecPrintToOutputLog testExec input
 
-let private usualTestExample exampleName =
-    let input = {
-            programPath = getExamplePath exampleName
-            toTruncate = true
-            terminationType = ProgramTerminationType.PTTTermination
-            endLoopScoreAccuracy = None
-        }
-    in
-    testRunParseAnalysis input
+// let private usualTestExample exampleName =
+//     let input = {
+//             programPath = getExamplePath exampleName
+//             toTruncate = true
+//             terminationType = ProgramTerminationType.PTTTermination
+//             endLoopScoreAccuracy = None
+//         }
+//     in
+//     testRunParseAnalysis input
 
 
-let test_hare_turtle_outside () = usualTestExample "h-t-r-2-3"
+// let test_hare_turtle_outside () = usualTestExample "h-t-r-2-3"
 
-let test_hare_turtle_inside () = usualTestExample "h-t-r-2-3-inside-score"
+// let test_hare_turtle_inside () = usualTestExample "h-t-r-2-3-inside-score"
 
-let test_growing_walk () =
-    testRunParseAnalysis {
-        programPath = getExamplePath "growing-walk-Q1"
-        toTruncate = false
-        terminationType = PTTDirect
-        endLoopScoreAccuracy = Some "1e-4"
-    }
+// let test_growing_walk () =
+//     testRunParseAnalysis {
+//         programPath = getExamplePath "growing-walk-Q1"
+//         toTruncate = false
+//         terminationType = PTTDirect
+//         endLoopScoreAccuracy = Some "1e-4"
+//     }
 
-let test_para_estimate () =
-    testRunParseAnalysis {
-        programPath = getExamplePath "para-estimation-recursive"
-        toTruncate = false
-        terminationType = PTTDirect
-        endLoopScoreAccuracy = Some "1e-5"
-    }
+// let test_para_estimate () =
+//     testRunParseAnalysis {
+//         programPath = getExamplePath "para-estimation-recursive"
+//         toTruncate = false
+//         terminationType = PTTDirect
+//         endLoopScoreAccuracy = Some "1e-5"
+//     }
 
-/// the conditional wraps probability pattern
-let test_ped_multi_v5_cond_prob () =
-    testRunParseAnalysis {
-        programPath = getExamplePath "pedestrian-multiple-branches-v5"
-        toTruncate = true
-        terminationType = PTTDirect
-        endLoopScoreAccuracy = Some "1e-4"
-    }
+// /// the conditional wraps probability pattern
+// let test_ped_multi_v5_cond_prob () =
+//     testRunParseAnalysis {
+//         programPath = getExamplePath "pedestrian-multiple-branches-v5"
+//         toTruncate = true
+//         terminationType = PTTDirect
+//         endLoopScoreAccuracy = Some "1e-4"
+//     }
 
-/// tested:
-/// v3, v4
-let test_ped_multi_v3_cond_only () =
-    testRunParseAnalysis {
-        programPath = getExamplePath "pedestrian-multiple-branches-v4"
-        toTruncate = true
-        terminationType = PTTDirect
-        endLoopScoreAccuracy = Some "1e-4"
-    }
+// /// tested:
+// /// v3, v4
+// let test_ped_multi_v3_cond_only () =
+//     testRunParseAnalysis {
+//         programPath = getExamplePath "pedestrian-multiple-branches-v4"
+//         toTruncate = true
+//         terminationType = PTTDirect
+//         endLoopScoreAccuracy = Some "1e-4"
+//     }
 
-/// Q1 && Q2 -- PASSED
-let test_neg_ten_mode () =
-    testRunParseAnalysis {
-        programPath = getExamplePath "add-uniform-unbounded-Q1"
-        toTruncate = false
-        terminationType = PTTDirect
-        endLoopScoreAccuracy = None
-    }
+// /// Q1 && Q2 -- PASSED
+// let test_neg_ten_mode () =
+//     testRunParseAnalysis {
+//         programPath = getExamplePath "add-uniform-unbounded-Q1"
+//         toTruncate = false
+//         terminationType = PTTDirect
+//         endLoopScoreAccuracy = None
+//     }
 
-/// Looks like no problem
-let test_cav_example_5 () =
-    testRunParseAnalysis {
-        programPath = getExamplePath "cav-example-5-Q2"
-        toTruncate = false
-        terminationType = PTTDirect
-        endLoopScoreAccuracy = None }
+// /// Looks like no problem
+// let test_cav_example_5 () =
+//     testRunParseAnalysis {
+//         programPath = getExamplePath "cav-example-5-Q2"
+//         toTruncate = false
+//         terminationType = PTTDirect
+//         endLoopScoreAccuracy = None }
 
-let test_cav_example_7 () =
-    testRunParseAnalysis {
-        programPath = getExamplePath "cav-example-7-Q1"
-        toTruncate = false
-        terminationType = PTTDirect
-        endLoopScoreAccuracy = None }
+// let test_cav_example_7 () =
+//     testRunParseAnalysis {
+//         programPath = getExamplePath "cav-example-7-Q1"
+//         toTruncate = false
+//         terminationType = PTTDirect
+//         endLoopScoreAccuracy = None }
 
-let test_ped_original () =
-    testRunParseAnalysis {
-        programPath = getExamplePath "pedestrian"
-        toTruncate = false
-        terminationType = PTTDirect
-        endLoopScoreAccuracy = Some "1e-4" }
+// let test_ped_original () =
+//     testRunParseAnalysis {
+//         programPath = getExamplePath "pedestrian"
+//         toTruncate = false
+//         terminationType = PTTDirect
+//         endLoopScoreAccuracy = Some "1e-4" }
 
-/// tested:
-/// v1, v2, v3, dev5
-let test_ped_beta () =
-    testRunParseAnalysis {
-        programPath = getExamplePath "pedestrian-deviation5.program"
-        toTruncate = true
-        terminationType = PTTDirect
-        endLoopScoreAccuracy = Some "1e-4" }
+// /// tested:
+// /// v1, v2, v3, dev5
+// let test_ped_beta () =
+//     testRunParseAnalysis {
+//         programPath = getExamplePath "pedestrian-deviation5.program"
+//         toTruncate = true
+//         terminationType = PTTDirect
+//         endLoopScoreAccuracy = Some "1e-4" }
 
-let test_random_box_walk () =
-    testRunParseAnalysis {
-        programPath = getExamplePath "random-box-walk-Q1"
-        toTruncate = false
-        terminationType = PTTDirect
-        endLoopScoreAccuracy = None }
+// let test_random_box_walk () =
+//     testRunParseAnalysis {
+//         programPath = getExamplePath "random-box-walk-Q1"
+//         toTruncate = false
+//         terminationType = PTTDirect
+//         endLoopScoreAccuracy = None }
 
-/// tested:
-/// v1, v2, v3, v4
-let test_random_walk_inside () =
-    testRunParseAnalysis {
-        programPath = getExamplePath "random-walk-beta-inside-scorey-v4.program"
-        toTruncate = true
-        terminationType = PTTTermination
-        endLoopScoreAccuracy = None }
+// /// tested:
+// /// v1, v2, v3, v4
+// let test_random_walk_inside () =
+//     testRunParseAnalysis {
+//         programPath = getExamplePath "random-walk-beta-inside-scorey-v4.program"
+//         toTruncate = true
+//         terminationType = PTTTermination
+//         endLoopScoreAccuracy = None }
 
-let test_run_all () =
-    List.iter (fun func -> func ()) [
-        test_hare_turtle_outside
-        test_hare_turtle_inside
-        test_growing_walk
-        test_para_estimate
-        test_ped_multi_v5_cond_prob
-        test_ped_multi_v3_cond_only
-        test_neg_ten_mode
-        test_cav_example_5
-        test_cav_example_7
-        test_ped_original
-        test_ped_beta
-        test_random_box_walk
-        test_random_walk_inside
-    ]
+// let test_run_all () =
+//     List.iter (fun func -> func ()) [
+//         test_hare_turtle_outside
+//         test_hare_turtle_inside
+//         test_growing_walk
+//         test_para_estimate
+//         test_ped_multi_v5_cond_prob
+//         test_ped_multi_v3_cond_only
+//         test_neg_ten_mode
+//         test_cav_example_5
+//         test_cav_example_7
+//         test_ped_original
+//         test_ped_beta
+//         test_random_box_walk
+//         test_random_walk_inside
+//     ]
+
+let testSimpleExample () =
+    let name = "test-simple-example" in
+    let printer = println in
+    let programStr = File.ReadAllText "../example.txt" in
+    runFromStr name programStr printer

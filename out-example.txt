@@ -1,0 +1,48 @@
+test
+Random Variables:
+r1 Distribution (DContinuousUniform, [0; 1]) [0, 1]
+r2 Distribution (DContinuousUniform, [1/2; 1]) [1/2, 1]
+Program Variables:
+real x [0, 12]
+int y [-100, 5]
+real z [-100, 5]
+Update Groups:
+[10-x>=0 and y-4>=0 and 4-y>=0 and 5-z>=0]
+items:
+InLoop: 0.4 (x,y,z)->(x+r2,1+y,z+r1), (x)
+InLoop: 0.4 (x,y,z)->(x+r2,1+y,z-r1), (x)
+OutLoop: 0.2 (x,y,z)->(x,y-1,z), (x)*(x)
+end-items
+[10-x>=0 and 3-y>=0 and 5-z>=0]
+items:
+InLoop: 0.4 (x,y,z)->(x+r2,1+y,z+r1), (x)
+InLoop: 0.4 (x,y,z)->(x+r2,1+y,z-r1), (x)
+OutLoop: 0.2 (x,y,z)->(x,y-1,z), (x)*(y-1)
+end-items
+[10-x>=0 and y-4>=0 and 4-y>=0 and z-5>=0]
+items:
+InLoop: 0.8 (x,y,z)->(x+r2,1+y,z), (x)
+OutLoop: 0.2 (x,y,z)->(x,y-1,z), (x)*(x)
+end-items
+[10-x>=0 and 3-y>=0 and z-5>=0]
+items:
+InLoop: 0.8 (x,y,z)->(x+r2,1+y,z), (x)
+OutLoop: 0.2 (x,y,z)->(x,y-1,z), (x)*(y-1)
+end-items
+[10-x>=0 and y-5>=0 and 5-z>=0]
+items:
+InLoop: 0.5 (x,y,z)->(x+r2,y,z+r1), (x)
+InLoop: 0.5 (x,y,z)->(x+r2,y,z-r1), (x)
+end-items
+[10-x>=0 and y-5>=0 and z-5>=0]
+items:
+InLoop: 1 (x,y,z)->(x+r2,y,z), (x)
+end-items
+[y-3>=0 and x-10>=0]
+items:
+OutLoop: 1 (x,y,z)->(x,y,z), (x)
+end-items
+[2-y>=0 and x-10>=0]
+items:
+OutLoop: 1 (x,y,z)->(x,y,z), (y)
+end-items

@@ -61,7 +61,7 @@ let rec combineConst (aExpr : ArithExpr) =
         let lst = List.map getConst lst in
         match op with
         | OpAdd -> AConst $ List.sum lst
-        | OpMul -> AConst $ List.reduce (*) lst
+        | OpMul -> AConst $ List.reduce ( * ) lst
         | OpMinus ->
             // DEBUG: in minus, when there is ONLY ONE element, it is to negate the value
             match lst with
@@ -71,7 +71,7 @@ let rec combineConst (aExpr : ArithExpr) =
                    AConst $ hd - List.sum rest
         | OpDiv ->
             let hd, rest = List.head lst, List.tail lst in
-            AConst $ hd / List.fold (*) NUMERIC_ONE rest
+            AConst $ hd / List.fold ( * ) NUMERIC_ONE rest
     
 let arithExprToNormalisedPolynomial (aExpr : ArithExpr) : Polynomial =
     combineConst aExpr
@@ -96,7 +96,7 @@ let polynomialToArithExpr (Polynomial lst) =
             else
                 placeTerm $ AOperation (OpMul, AConst (abs c) :: List.map AVar vars)
     in
-    let (pos, neg) = List.foldBack backFindPosAndNeg lst ([], []) in
+    let pos, neg = List.foldBack backFindPosAndNeg lst ([], []) in
     match pos with
     | [] ->
         combineConst $
@@ -136,6 +136,18 @@ type Compare = Compare of Comparator * ArithExpr * ArithExpr
             let (Compare (op, a1, a2)) = this in
             Compare (op, substVars a1 map, substVars a2 map)
 
+let rec boolExprToProposition (bExpr : BoolExpr) =
+    let rec collectAndLevel bExpr =
+        match bExpr with
+        | BAnd (b1, b2) -> collectAndLevel b1 ++ collectAndLevel b2
+        | _ -> [ bExpr ]
+    in
+    match bExpr with
+    | BTrue -> True
+    | BFalse -> False
+    | BAnd _ -> And $ List.map boolExprToProposition (collectAndLevel bExpr)
+    | BCompare (op, a1, a2) -> atomise $ Compare (op, a1, a2)
+
 let negateCompare (Compare (op, a1, a2)) = Compare (op.Negate, a1, a2)
 
 let nodeToCompare (node : Node) =
@@ -160,6 +172,12 @@ let nodeToCompare (node : Node) =
 
 let inline nodeToCompareProp node =
     Atom (true, nodeToCompare node)
+
+let mkQueryCtx () =
+    { allVars = None
+      varRange = Map.empty
+      specialVarTypes = Map.empty
+      atomParse = nodeToCompareProp }
 
 /// conjunctive comparative list:
 /// a1 ~1 a1' /\ a2 ~2 a2' /\ ... an ~n an'  // ~i is comparator

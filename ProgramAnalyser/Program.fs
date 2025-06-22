@@ -2,9 +2,9 @@
     
 open ProgramAnalyser
 open Run
-open Utils
+
 
 [<EntryPoint>]
 let main args =
-    runArgAnalysis $ Array.toList args;
+    runByAnalysingArgs args;
     0

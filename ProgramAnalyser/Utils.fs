@@ -357,6 +357,7 @@ let decomposeList l =
     | hd :: tl -> hd, tl
 
 /// to combine the elements from each list
+/// 
 /// if one of the list is empty, the whole returns empty
 let rec listCartesian lst =
     match lst with

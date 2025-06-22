@@ -8,3 +8,5 @@ ProgramAnalyser/Parser.fs
 ProgramAnalyser/Parser.fsi
 global.json
 qodana.yaml
+
+.fake
