@@ -80,8 +80,8 @@ in_loop_score_statement :
 
 if_statement :
   ST_IF bool_expr ST_THEN non_loop_statements
-  optional_elseif_seq
-  ST_FI { STIfBool (($2, $4) :: $5) }
+  ST_ELSE non_loop_statements
+  ST_FI { STIfBool ($2, $4, $6) }
 
 optional_elseif_seq :
       { [] }

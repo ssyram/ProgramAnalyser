@@ -173,6 +173,12 @@ let nodeToCompare (node : Node) =
 let inline nodeToCompareProp node =
     Atom (true, nodeToCompare node)
 
+let mkQueryCtx () =
+    { allVars = None
+      varRange = Map.empty
+      specialVarTypes = Map.empty
+      atomParse = nodeToCompareProp }
+
 /// conjunctive comparative list:
 /// a1 ~1 a1' /\ a2 ~2 a2' /\ ... an ~n an'  // ~i is comparator
 type ConjCmps = ConjCmps of (Comparator * ArithExpr * ArithExpr) list

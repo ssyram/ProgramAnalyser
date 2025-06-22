@@ -461,7 +461,13 @@ open Utils
 
 let runFromStr name programStr printer =
     let program = Input.parseProgramFromStr programStr in
-    let output = Output.SimpleAnalyser(name, program).Analyse () in
+    Flags.INT_VARS <-
+        let getIntVarName = function
+        | DeclProgVar (PVTInt, name,_,_,_) -> Some name
+        | _ -> None
+        in
+        Set.ofList $ List.choose getIntVarName program.decls;
+    let output = Output.MiddleAnalyser(name, program).Analyse () in
     printer output
 
 let runArgAnalysis (args : string []) =

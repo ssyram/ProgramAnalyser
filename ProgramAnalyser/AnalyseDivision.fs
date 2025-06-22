@@ -296,12 +296,6 @@ let conjCmpsToCompareProp (ConjCmps lst) =
     | [] -> True
     | [ x ] -> x
     | lst -> And lst
-
-let mkQueryCtx () =
-    { allVars = None
-      varRange = Map.empty
-      specialVarTypes = Map.empty
-      atomParse = nodeToCompareProp }
     
 let tryMergeWithConditions canMerge conjCmps =
     Decomposition.tryMerge canMerge conjCmps

@@ -114,7 +114,7 @@ let NUMERIC_ZERO = Numeric.ZERO
 let NUMERIC_ONE = Numeric Rational.One
 
 module Flags =
-    let mutable DEBUG = false
+    let mutable DEBUG = false   
     let DEFAULT_CONFIG_VAR_RANGE = (Numeric 0, Numeric 5)
     let mutable INT_VARS : Set<string> = Set.empty
     let mutable ENC_PATH = "../../../../.enc.fl"

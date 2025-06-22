@@ -44,14 +44,16 @@ let rec private simpArithExprForPrint arithExpr =
 
 
 /// the updates are printed as an atomic update (v1, ..., vn) -> (e1, ..., en)
-let printUpdates updates =
+/// should provide also the vars
+let printUpdates vars updates =
     let toTuple strList = String.concat "," strList in
-    Map.toList updates
-    |> List.unzip
-    |> BiMap.pairMap (List.map toString, List.map toString)
-    |> BiMap.bothMap toTuple
-    |> function
-    | vars, updates -> $"({vars})->({updates})"
+    let getUpdate var =
+        match Map.tryFind var updates with
+        | Some expr -> expr
+        | None -> AVar var in
+    let updates = toTuple $ List.map (getUpdate >> toString) vars in
+    let vars = toTuple $ List.map toString vars in
+    $"({vars})->({updates})"
 
 let printSingleDestEdge (loc, guard) =
     let guard = conjCmpsToGeConj LossConfirm guard in
@@ -103,16 +105,18 @@ type CfgItem =
       /// for each `guard`, there is a list of destination locations depending on the random variable ranges.
       /// In summary: `guard` >> `location` >> `var-ranges`.
       joinedDestEdges : (ConjCmps * (Location * (Variable * ArithExpr * ArithExpr) list) list ) list  }
-    override x.ToString (): string =
-        [
-            "edge:" + printUpdates x.updates
-            $"prob={x.prob}"
-            "scores:" + String.concat "*" (List.map (fun x -> $"({x})") x.scores)
-            String.concat "\n" $ List.map printSingleDestEdge x.singleDestEdges
-            String.concat "\n" $ List.map printJoinedDestEdge x.joinedDestEdges
-            "end-edge"
-        ]
-        |> fromListGenOutput
+    override _.ToString (): string = failwith "call `printCfgItem` instead."
+
+let printCfgItem vars (x : CfgItem) =
+    [
+        "edge:" + printUpdates vars x.updates
+        $"prob={x.prob}"
+        "scores:" + String.concat "*" (List.map (fun x -> $"({x})") x.scores)
+        String.concat "\n" $ List.map printSingleDestEdge x.singleDestEdges
+        String.concat "\n" $ List.map printJoinedDestEdge x.joinedDestEdges
+        "end-edge"
+    ]
+    |> fromListGenOutput
 
 type Output =
     { // The metadata to declare
@@ -223,8 +227,10 @@ type SimpleCfgItem =
       toLoc : Location
       guard : GeConj }
 with
-    override x.ToString (): string =
-        $"""{x.toLoc}: [{x.guard}] {x.prob}: {printUpdates x.updates}, {String.concat "*" (List.map (fun x -> $"({x})") x.scores)}"""
+    override _.ToString (): string = failwith "call `printSimpleCfgItem` instead"
+
+let printSimpleCfgItem vars (x : SimpleCfgItem) =
+    $"""{x.toLoc}: [{x.guard}] {x.prob}: {printUpdates vars x.updates}, {String.concat "*" (List.map (fun x -> $"({x})") x.scores)}"""
 
 let normaliseGeConj (GeConj lst) = GeConj $ List.map normaliseArithExpr lst
 
@@ -246,7 +252,7 @@ let optimiseSimpleItem item =
 type SimpleOutput =
     { programName : string
       randomVars : (Variable * Distribution * RealInf * RealInf) list
-      programVars : (Variable * RealInf * RealInf) list
+      programVars : (Variable * ProgVarType * RealInf * RealInf) list
       cfgItems : SimpleCfgItem list }
 with
     override x.ToString () : string =
@@ -254,10 +260,11 @@ with
             String.concat "\n" $ List.map (fun (v, dist, lower, upper) -> $"{v} {dist} [{lower}, {upper}]") x.randomVars
         in
         let programVarsStr =
-            String.concat "\n" $ List.map (fun (v, lower, upper) -> $"{v} [{lower}, {upper}]") x.programVars
+            String.concat "\n" $ List.map (fun (v, ty, lower, upper) -> $"{ty} {v} [{lower}, {upper}]") x.programVars
         in
+        let progVars = List.map (fun (v,_,_,_) -> v) x.programVars in
         let cfgItemsStr =
-            String.concat "\n" $ List.map toString x.cfgItems
+            String.concat "\n" $ List.map (printSimpleCfgItem progVars) x.cfgItems
         in
         [
             $"{x.programName}"
@@ -321,7 +328,7 @@ type SimpleAnalyser (name : string, program : Program) = class
 
     /// remember to input the out-loop edges WITHOUT considering the (negation of the) loop guard
     /// Otherwise, it must contradict the loop guard for break edges.
-    let simpleItemsFromEdge noLoopGuardOutEdges inEdge =
+    let simpleItemsFromEdge noLoopGuardOutEdges (inEdge : CfgEdge) =
         if inEdge.isBreak then
             debugPrint $"Break edge: {inEdge}";
             List.collect (directToItems OutLoop << appendEdge inEdge) noLoopGuardOutEdges
@@ -349,8 +356,240 @@ type SimpleAnalyser (name : string, program : Program) = class
         {
             programName = name
             randomVars = Map.toList randomVars |> List.map (fun (v, (dist, lower, upper)) -> v, dist, lower, upper)
-            programVars = Map.toList programVars |> List.map (fun (v, (_, lower, upper)) -> v, lower, upper)
+            programVars = Map.toList programVars |> List.map (fun (v, (ty, lower, upper)) -> v, ty, lower, upper)
             cfgItems = cfgItems |> List.map optimiseSimpleItem
+        }
+end
+
+
+
+
+
+
+type MiddleCfgItem =
+    { updates : Map<Variable, ArithExpr>
+      prob : ArithExpr
+      scores : ArithExpr list
+      toLoc : Location }
+with
+    override _.ToString (): string = failwith "call `printMiddleCfgItem` instead."
+
+let printMiddleCfgItem vars (x : MiddleCfgItem) =
+    $"""{x.toLoc}: {x.prob} {printUpdates vars x.updates}, {String.concat "*" (List.map (fun x -> $"({x})") x.scores)}"""
+
+type MiddleCfgGroup =
+    { items : MiddleCfgItem list
+      guard : GeConj }
+with
+    override _.ToString (): string =
+        failwith "call `printMiddleCfgGroup` instead."
+
+let printMiddleCfgGroup vars (x : MiddleCfgGroup) =
+    let itemsStr = String.concat "\n" $ List.map (printMiddleCfgItem vars) x.items in
+    $"[{x.guard}]\nitems:\n{itemsStr}\nend-items"
+
+let optimiseMiddleCfgItem (item : MiddleCfgItem) =
+    let updates =
+        item.updates
+        |> Map.map (fun _ expr -> normaliseArithExpr expr) in
+    let prob = normaliseArithExpr item.prob in
+    let scores = List.map normaliseArithExpr item.scores in
+    { updates = updates
+      prob = prob
+      scores = scores
+      toLoc = item.toLoc }
+
+let optimiseMiddleCfgGroup (group : MiddleCfgGroup) =
+    let items = List.map optimiseMiddleCfgItem group.items in
+    let guard = normaliseGeConj group.guard in
+    { items = items; guard = guard }
+
+type MiddleOutput =
+    { programName : string
+      randomVars : (Variable * Distribution * RealInf * RealInf) list
+      programVars : (Variable * ProgVarType * RealInf * RealInf) list
+      itemGroups : MiddleCfgGroup list }
+with
+    override x.ToString () : string =
+        let randomVarsStr =
+            String.concat "\n" $ List.map (fun (v, dist, lower, upper) -> $"{v} {dist} [{lower}, {upper}]") x.randomVars
+        in
+        let programVarsStr =
+            String.concat "\n" $ List.map (fun (v, ty, lower, upper) -> $"{ty} {v} [{lower}, {upper}]") x.programVars
+        in
+        let progVars = List.map (fun (v,_,_,_) -> v) x.programVars in
+        let itemGroupsStr =
+            String.concat "\n" $ List.map (printMiddleCfgGroup progVars) x.itemGroups
+        in
+        [
+            $"{x.programName}"
+            "Random Variables:"
+            randomVarsStr
+            "Program Variables:"
+            programVarsStr
+            "Update Groups:"
+            itemGroupsStr
+        ]
+        |> fromListGenOutput
+
+type MiddleAnalyser (name : string, program : Program) = class
+    let randomVars = randVarsOfProgram program
+    let programVars = programVarsOfProgram program
+    let loopGuard = boolExprToProposition program.loopGuard
+    let invariant = boolExprToProposition program.invariant
+
+    let joinCmds (inCmd : ProbCmd) (outCmd : ProbCmd) =
+        {
+            updates = combineUpdates inCmd.updates outCmd.updates
+            prob = AOperation (OpMul, [ inCmd.prob; substVars outCmd.prob inCmd.updates ])
+            scores = inCmd.scores @ List.map (flip substVars inCmd.updates) outCmd.scores
+            isBreak = outCmd.isBreak
+        }
+
+    let toItem loc (cmd : ProbCmd) =
+        {
+            updates = cmd.updates
+            prob = cmd.prob
+            scores = cmd.scores
+            toLoc = loc
+        }
+
+    let joinBreakToItem (outCmds : ProbCmd list) (inCmd : ProbCmd) =
+        // the break edge is always the last one, so we can simply append it
+        if inCmd.isBreak then
+            List.map (toItem OutLoop << joinCmds inCmd) outCmds
+        else [ toItem InLoop inCmd ]
+
+    let toOutputGroup loc (group : PropGroup) : MiddleCfgGroup list =
+        propToValidConjCmpList true group.guard
+        |> List.map (fun guard ->
+            {
+                items = List.map (fun (cmd: ProbCmd) ->
+                    {
+                        updates = cmd.updates
+                        prob = cmd.prob
+                        scores = cmd.scores
+                        toLoc = loc
+                    }) group.cmds
+                guard = conjCmpsToGeConj LossConfirm guard
+            })
+
+    let containsBreak (group : PropGroup) =
+        List.exists (fun cmd -> cmd.isBreak) group.cmds
+    
+    let allBreakUpdates (group : PropGroup) =
+        group.cmds
+        |> List.filter (fun cmd -> cmd.isBreak)
+        |> List.map (fun cmd -> cmd.updates)
+
+    let mkBreakPropsAndItems (outGroup : PropGroup) (acc : (Prop list * MiddleCfgItem list)) (inCmd : ProbCmd) =
+        if inCmd.isBreak then
+            // if it is a break edge, we need to add the out-group to the in-group
+            let newGuard = substPropositionVars outGroup.guard inCmd.updates in
+            let newItem =
+                {
+                    updates = inCmd.updates
+                    prob = inCmd.prob
+                    scores = inCmd.scores
+                    toLoc = OutLoop
+                }
+            in
+            (newGuard :: fst acc, newItem :: snd acc)
+        else
+            // otherwise, just append the item to the list
+            (fst acc, { updates = inCmd.updates; prob = inCmd.prob; scores = inCmd.scores; toLoc = InLoop } :: snd acc)
+
+    // here we must consider the break edges in a group
+    // in this case, we will have to make these items appended by some out-loop groups
+    // so now, each break edge (item) in the in-group should be appended by each out-loop group,
+    //      with all the other in-edges, we form a new group
+    // we do this for each break in-edge, so that each in-edge leads to a set of new groups
+    //      each corresponds to an out-loop group
+    // ultimately, given `n` in-loop break edges and `m` out-loop groups,
+    // we will have `n * m` groups generated
+    // 
+    // ~~in each new group, the guard is the conjunction of the in-group and the out-group
+    // BUT this can be optimised --- we choose ONE group for ALL break edges
+    // as the guards are disjoint, so ???all possible out-edges can only lead to one group???~~
+    // 
+    // THIS IS NOT TRUE: one out-edge with X ::= 1, another with X ::= 0
+    // so the out-groups with guard X > 0 and X <= 0 are taken respectively
+    // 
+    // So we still have to have `n * m` groups generated
+    // BUG: the following does not work like this, FIX IT
+    let genForBreakGroup (inGroup : PropGroup) (outGroup : PropGroup) : MiddleCfgGroup list =
+        assert containsBreak inGroup;
+        let breakProps, items = List.fold (mkBreakPropsAndItems outGroup) ([], []) inGroup.cmds in
+        // we have a break edge, so we need to add the out-group to the in-group
+        let newGuard =
+            allBreakUpdates inGroup
+            |> List.map (substPropositionVars outGroup.guard)
+            |> curry List.Cons inGroup.guard
+            |> And
+        in
+        let items = List.collect (joinBreakToItem outGroup.cmds) inGroup.cmds in
+        propToValidConjCmpList true newGuard
+        |> List.map (fun guard ->
+            {
+                items = items
+                guard = conjCmpsToGeConj LossConfirm guard
+            })
+
+    let groupInfoFromBreak (cmd : ProbCmd) (outGroup : PropGroup) : (Prop * MiddleCfgItem list) =
+        assert cmd.isBreak;
+        let newGuard = substPropositionVars outGroup.guard cmd.updates in
+        let items = List.map (toItem OutLoop << joinCmds cmd) outGroup.cmds in
+        newGuard, items
+
+    /// returns `[(guard, [item])]` for this command:
+    /// for a non-break cmd, it is simply `[(true, [item-from-cmd])]` as a singleton
+    /// for a break cmd, each item corresponds to an out-group, with the guard being the substited guard
+    ///     and the items being the cmds in the out-group postpended the given cmd
+    let genGroupsInfo outGroups cmd : (Prop * MiddleCfgItem list) list =
+        if cmd.isBreak then List.map (groupInfoFromBreak cmd) outGroups
+        else [ (True, [ toItem InLoop cmd ]) ]
+
+    let middleGroupsFromPropGroups outGroups (inGroup : PropGroup) =
+        let mapper lst =
+            let newGuard = And (inGroup.guard :: List.map fst lst) in
+            // simply merge all the items together as they are now a single group
+            let items = List.collect snd lst in
+            propToValidConjCmpList true newGuard
+            |> List.map (fun guard ->
+                {
+                    items = items
+                    guard = conjCmpsToGeConj LossConfirm guard
+                })
+        in
+        List.map (genGroupsInfo outGroups) inGroup.cmds
+        // we have a list of `(guard, [item])` for each cmd in the info
+        |> listCartesian
+        |> List.map mapper
+
+    let addInLoopGuard (edge : PropGroup) =
+        { edge with
+            guard = And [ edge.guard; loopGuard; invariant ] }
+
+    let addOutLoopGuard (edge : PropGroup) =
+        { edge with
+            guard = And [ edge.guard; Not loopGuard; invariant ] }
+
+    let itemGroups =
+        let inLoopGroups = List.map addInLoopGuard $ stmtsToGuardedCommandGroups program.loopBody in
+        debugPrint $"In-loop groups number: {List.length inLoopGroups}";
+        debugPrint $"They are: {inLoopGroups}";
+        // considering the break edges, we need NOT to add the (negation of) loop guard here for out-loop edges
+        let noLoopGuardOutGroups = stmtsToGuardedCommandGroups program.outLoopStatements in
+        let outLoopGroups = List.map addOutLoopGuard noLoopGuardOutGroups in
+        List.collect (middleGroupsFromPropGroups noLoopGuardOutGroups) inLoopGroups @
+        List.collect (toOutputGroup OutLoop) outLoopGroups
+
+    member _.Analyse () : MiddleOutput =
+        {
+            programName = name
+            randomVars = Map.toList randomVars |> List.map (fun (v, (dist, lower, upper)) -> v, dist, lower, upper)
+            programVars = Map.toList programVars |> List.map (fun (v, (ty, lower, upper)) -> v, ty, lower, upper)
+            itemGroups = itemGroups |> List.map optimiseMiddleCfgGroup
         }
 end
 
