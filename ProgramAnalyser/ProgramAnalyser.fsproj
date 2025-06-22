@@ -4,6 +4,7 @@
     <TargetFramework>net9.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Argu" Version="6.2.5" />
     <PackageReference Include="FsLexYacc" Version="11.0.0-beta1" />
     <FsYacc Include="Parser.fsy">
       <OtherFlags>--module Parser -v</OtherFlags>

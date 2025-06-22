@@ -24,7 +24,8 @@ while x < 10 do
     fi;
     x := x + r2
 od;
-if y >= 5 then
+if y > 2 then
     score(x)
-else score(y)
+else
+    score(y)
 fi

@@ -459,6 +459,63 @@ open Utils
 //     let anaCtx = argResultsToAnalysisContext argResult in
 //     runPrintingOut (anaCtx, Some argResult) argResult.outFilePath
 
+open Argu
+
+type private Arguments =
+    | [<MainCommand; ExactlyOnce>] FilePath of string
+    | [<AltCommandLine([|"-n"; "--name"|])>] ProgramName of string
+    | [<AltCommandLine([|"-o"; "--output"; "--out"|])>] OutputPath of string
+    | [<AltCommandLine([|"-d"|])>] Debug
+with
+    interface IArgParserTemplate with
+        member s.Usage = 
+            match s with
+            | FilePath _ -> "Specifies the input file name containing the program to analyse."
+            | OutputPath _ -> "Specifies the output file path where results will be saved, by default the std-out."
+            | Debug -> "Enables debug mode, which may provide additional output for debugging purposes to std-out."
+            | ProgramName _ -> "Specifies the name of the program being analysed, used for output formatting, if not exist, use the non-extended file path."
+
+let private printToFile (output : string) (filePath : string) =
+    let dir = Path.GetDirectoryName filePath in
+    if not (Directory.Exists dir) then Directory.CreateDirectory dir |> ignore;
+    File.WriteAllText(filePath, output);
+    printfn $"Output written to {filePath}."
+
+let private printToStdOut (output : string) =
+    println "------------------- Program Analysis Output -------------------";
+    printfn $"{output}"
+    println "---------------------------------------------------------------"
+
+// let private runArgAnalysis (args : string []) =
+//     let parser = ArgumentParser.Create<Arguments>() in
+//     let parsedArgs = parser.ParseCommandLine args in
+//     let filePath = parsedArgs.GetResult FilePath in
+//     let programName =
+//         match parsedArgs.TryGetResult ProgramName with
+//         | Some name -> name
+//         | None -> Path.GetFileNameWithoutExtension filePath in
+//     let programStr =
+//         if File.Exists filePath then
+//             File.ReadAllText filePath
+//         else
+//             failwith $"File not found: {filePath}. Please provide a valid file path." in
+//     let outPrinter =
+//         match parsedArgs.TryGetResult OutputPath with
+//         | Some path -> fun x -> printToFile x path
+//         | None -> fun x -> printToStdOut x in
+//     if parsedArgs.Contains Debug then
+//         Flags.DEBUG <- true;
+//     { 
+//         programStr = programStr;
+//         programName = programName;
+//         outputPrinter = outPrinter;
+//     }
+
+/// Prints the usage of the command line arguments.
+let printHelper () =
+    let parser = ArgumentParser.Create<Arguments>() in
+    printfn $"{parser.PrintUsage()}"
+
 let runFromStr name programStr printer =
     let program = Input.parseProgramFromStr programStr in
     Flags.INT_VARS <-
@@ -468,9 +525,31 @@ let runFromStr name programStr printer =
         in
         Set.ofList $ List.choose getIntVarName program.decls;
     let output = Output.MiddleAnalyser(name, program).Analyse () in
-    printer output
+    printer $ toString output
 
-let runArgAnalysis (args : string []) =
-    let file = args[0] in
-    let outPath = if args.Length > 1 then Some args[1] else None in
-    undefined ()
+let private runWithFilePath (parsedArgs : ParseResults<Arguments>) (filePath : string) =
+    let programName =
+        match parsedArgs.TryGetResult ProgramName with
+        | Some name -> name
+        | None -> Path.GetFileNameWithoutExtension filePath in
+    let programStr =
+        if File.Exists filePath then
+            File.ReadAllText filePath
+        else
+            failwith $"File not found: {filePath}. Please provide a valid file path." in
+    let outPrinter =
+        match parsedArgs.TryGetResult OutputPath with
+        | Some path -> fun x -> printToFile x path
+        | None -> fun x -> printToStdOut x in
+    if parsedArgs.Contains Debug then
+        Flags.DEBUG <- true;
+    runFromStr programName programStr outPrinter
+
+let runByAnalysingArgs (args : string []) =
+    // Parse the command line arguments
+    let parser = ArgumentParser.Create<Arguments>() in
+    try
+        let parsedArgs = parser.ParseCommandLine args in
+        runWithFilePath parsedArgs $ parsedArgs.GetResult FilePath
+    with
+    | e -> println $"Error: {e.Message}"

@@ -2,9 +2,9 @@
     
 open ProgramAnalyser
 open Run
-open Utils
+
 
 [<EntryPoint>]
 let main args =
-    Test.testSimpleExample ();
+    runByAnalysingArgs args;
     0
