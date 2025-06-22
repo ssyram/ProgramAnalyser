@@ -482,23 +482,6 @@ type MiddleAnalyser (name : string, program : Program) = class
         |> List.filter (fun cmd -> cmd.isBreak)
         |> List.map (fun cmd -> cmd.updates)
 
-    let mkBreakPropsAndItems (outGroup : PropGroup) (acc : (Prop list * MiddleCfgItem list)) (inCmd : ProbCmd) =
-        if inCmd.isBreak then
-            // if it is a break edge, we need to add the out-group to the in-group
-            let newGuard = substPropositionVars outGroup.guard inCmd.updates in
-            let newItem =
-                {
-                    updates = inCmd.updates
-                    prob = inCmd.prob
-                    scores = inCmd.scores
-                    toLoc = OutLoop
-                }
-            in
-            (newGuard :: fst acc, newItem :: snd acc)
-        else
-            // otherwise, just append the item to the list
-            (fst acc, { updates = inCmd.updates; prob = inCmd.prob; scores = inCmd.scores; toLoc = InLoop } :: snd acc)
-
     // here we must consider the break edges in a group
     // in this case, we will have to make these items appended by some out-loop groups
     // so now, each break edge (item) in the in-group should be appended by each out-loop group,
@@ -517,24 +500,6 @@ type MiddleAnalyser (name : string, program : Program) = class
     // 
     // So we still have to have `n * m` groups generated
     // BUG: the following does not work like this, FIX IT
-    let genForBreakGroup (inGroup : PropGroup) (outGroup : PropGroup) : MiddleCfgGroup list =
-        assert containsBreak inGroup;
-        let breakProps, items = List.fold (mkBreakPropsAndItems outGroup) ([], []) inGroup.cmds in
-        // we have a break edge, so we need to add the out-group to the in-group
-        let newGuard =
-            allBreakUpdates inGroup
-            |> List.map (substPropositionVars outGroup.guard)
-            |> curry List.Cons inGroup.guard
-            |> And
-        in
-        let items = List.collect (joinBreakToItem outGroup.cmds) inGroup.cmds in
-        propToValidConjCmpList true newGuard
-        |> List.map (fun guard ->
-            {
-                items = items
-                guard = conjCmpsToGeConj LossConfirm guard
-            })
-
     let groupInfoFromBreak (cmd : ProbCmd) (outGroup : PropGroup) : (Prop * MiddleCfgItem list) =
         assert cmd.isBreak;
         let newGuard = substPropositionVars outGroup.guard cmd.updates in
@@ -543,14 +508,17 @@ type MiddleAnalyser (name : string, program : Program) = class
 
     /// returns `[(guard, [item])]` for this command:
     /// for a non-break cmd, it is simply `[(true, [item-from-cmd])]` as a singleton
-    /// for a break cmd, each item corresponds to an out-group, with the guard being the substited guard
-    ///     and the items being the cmds in the out-group postpended the given cmd
+    /// for a break cmd, each element in the return corresponds to an out-group, with:
+    /// - the guard being the substited guard and
+    /// - the items being the cmds in the out-group postpending the given in-loop cmd
     let genGroupsInfo outGroups cmd : (Prop * MiddleCfgItem list) list =
         if cmd.isBreak then List.map (groupInfoFromBreak cmd) outGroups
         else [ (True, [ toItem InLoop cmd ]) ]
 
-    let middleGroupsFromPropGroups outGroups (inGroup : PropGroup) =
-        let mapper lst =
+    /// The resulting groups for the in-loop groups, given the out-loop groups WITHOUT the out-loop guard,
+    /// as they are used for the break edges (cmds).
+    let resGrpsForInLoopGroups outGroups (inGroup : PropGroup) =
+        let joinGroupInfo lst =
             let newGuard = And (inGroup.guard :: List.map fst lst) in
             // simply merge all the items together as they are now a single group
             let items = List.collect snd lst in
@@ -564,7 +532,7 @@ type MiddleAnalyser (name : string, program : Program) = class
         List.map (genGroupsInfo outGroups) inGroup.cmds
         // we have a list of `(guard, [item])` for each cmd in the info
         |> listCartesian
-        |> List.map mapper
+        |> List.collect joinGroupInfo
 
     let addInLoopGuard (edge : PropGroup) =
         { edge with
@@ -581,7 +549,7 @@ type MiddleAnalyser (name : string, program : Program) = class
         // considering the break edges, we need NOT to add the (negation of) loop guard here for out-loop edges
         let noLoopGuardOutGroups = stmtsToGuardedCommandGroups program.outLoopStatements in
         let outLoopGroups = List.map addOutLoopGuard noLoopGuardOutGroups in
-        List.collect (middleGroupsFromPropGroups noLoopGuardOutGroups) inLoopGroups @
+        List.collect (resGrpsForInLoopGroups noLoopGuardOutGroups) inLoopGroups @
         List.collect (toOutputGroup OutLoop) outLoopGroups
 
     member _.Analyse () : MiddleOutput =
